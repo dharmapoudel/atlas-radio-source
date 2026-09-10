@@ -1,0 +1,1 @@
+{"art": {"heroPx": 248, "thumbPx": 96}, "config": [], "description": "Explore live world radio. Search stations, browse by country, save favorites.", "icon": "icon.png", "id": "01a08604-de6f-7a9f-a11e-1b4233458b2a", "name": "Radio Atlas", "permissions": ["net.proxy"], "version": "0.3.3"}

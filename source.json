@@ -1,0 +1,8 @@
+{
+  "name": "Atlas Radio",
+  "description": "World radio for the Spotify Car Thing.",
+  "homepage": "https://github.com/dharmapoudel/atlas-radio-source",
+  "icon": null,
+  "base_url": "https://dharmapoudel.github.io/atlas-radio-source",
+  "recommended_sources": []
+}
