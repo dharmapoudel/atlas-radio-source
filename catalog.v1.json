@@ -1,0 +1,44 @@
+{
+  "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
+  "schema": "catalog.v1",
+  "updated_at": "2026-09-10T00:16:00.308Z",
+  "repo": {
+    "name": "Atlas Radio",
+    "description": "World radio for the Spotify Car Thing.",
+    "homepage": "https://github.com/dharmapoudel/atlas-radio-source",
+    "icon": null
+  },
+  "apps": [
+    {
+      "id": "01a08604-de6f-7a9f-a11e-1b4233458b2a",
+      "name": "Radio Atlas",
+      "description": "Explore live world radio. Search stations, browse by country, save favorites.",
+      "author": "Dharma Poudel",
+      "icon": "https://dharmapoudel.github.io/atlas-radio-source/icons/01a08604-de6f-7a9f-a11e-1b4233458b2a.png",
+      "screenshots": [
+        "https://dharmapoudel.github.io/atlas-radio-source/screenshots/01a08604-de6f-7a9f-a11e-1b4233458b2a/01.png",
+        "https://dharmapoudel.github.io/atlas-radio-source/screenshots/01a08604-de6f-7a9f-a11e-1b4233458b2a/02.png",
+        "https://dharmapoudel.github.io/atlas-radio-source/screenshots/01a08604-de6f-7a9f-a11e-1b4233458b2a/03.png"
+      ],
+      "homepage": "https://github.com/dharmapoudel/atlas-radio",
+      "source": "https://github.com/dharmapoudel/atlas-radio",
+      "versions": [
+        {
+          "version": "0.3.3",
+          "released_at": "2026-09-10T00:16:00.261Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.3.3.zip",
+            "size": 849757,
+            "sha256": "c303593482e9d791c07fae25868360f22c56651d2b9029fabc91d0a24641e74c"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Map tab: drag to pan around the map (pointer drag, clamped to the map\n  bounds). Drags no longer trigger station/country taps by mistake.\n- Icon refined again: fully square, dark gradient tile with a brighter cyan\n  broadcast mark and subtle glow."
+        }
+      ]
+    }
+  ],
+  "recommended_sources": []
+}
