@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-10T00:16:00.308Z",
+  "updated_at": "2026-09-11T17:23:24.462Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.4.0",
+          "released_at": "2026-09-11T17:23:24.246Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.0.zip",
+            "size": 901831,
+            "sha256": "1d619a59e4c76f5538d32741f26d222b16d3fccee5e1774e7651469c360038cd"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Audio now plays through the phone: station streams are handed to the\n  companion's native stream provider (`client.player`) instead of an HTML\n  audio element on the speakerless Car Thing. Volume, mute, and the slider\n  now control the phone's output where the stream actually plays.\n- The small button below the knob (Escape/Back) now exits the app back to\n  the launcher, even while the search field has focus. Footer hint updated:\n  \"Back exits.\"\n- Player errors now say what went wrong: no phone gateway connected,\n  companion too old to play streams, or the stream itself failed."
+        },
         {
           "version": "0.3.3",
           "released_at": "2026-09-10T00:16:00.261Z",
