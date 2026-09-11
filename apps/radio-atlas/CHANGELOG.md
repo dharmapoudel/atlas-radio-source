@@ -1,5 +1,16 @@
 # Atlas Radio
 
+## 0.4.1
+
+- Volume fix: the knob, slider, and mute button now use the phone's relative
+  volume commands (`volumeUp`/`volumeDown`/`muteToggle`), which the Car Thing
+  routes to the phone as volume key presses. The old absolute `setVolume`
+  commands were silently rejected by the companion on iOS, so the knob and
+  slider did nothing.
+- Knob press now toggles play/pause (was unhandled), and duplicate presses
+  within 0.7s are ignored so a single press can't pause-then-instantly-resume.
+- New icon: blue radio receiver on black, in the style of the Sonos app icon.
+
 ## 0.4.0
 
 - Audio now plays through the phone: station streams are handed to the

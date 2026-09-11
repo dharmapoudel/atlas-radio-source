@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { POPULAR_COUNTRIES, radioApi } from './radioApi';
 import { store } from './store';
 import { getClient } from './client';
@@ -36,6 +36,11 @@ export default function App() {
   const [recent, setRecent] = useState<Station[]>(() => store.getRecent());
   const [volume, setVolume] = useState(() => store.getVolume());
   const [muted, setMuted] = useState(false);
+  // guards against a single knob press arriving as two key events, which
+  // would pause then instantly resume
+  const lastToggleAt = useRef(0);
+  // last slider position, so drag deltas turn into volume steps
+  const sliderAt = useRef<number | null>(null);
 
   const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
 
@@ -137,6 +142,9 @@ export default function App() {
   }, []);
 
   const togglePlayPause = useCallback(() => {
+    const now = Date.now();
+    if (now - lastToggleAt.current < 700) return;
+    lastToggleAt.current = now;
     const client = getClient();
     if (!playing) return;
     if (isPaused) {
@@ -223,18 +231,35 @@ export default function App() {
     return () => { off(); };
   }, []);
 
-  const applyVolume = useCallback((v: number) => {
-    const clamped = Math.max(0, Math.min(100, v));
+  // phone volume: relative steps only. absolute setvolume/setmute never reach
+  // the phone (ios has no volumebackend, so the companion rejects them), while
+  // volumeup/down/mutetoggle route over iap2 hid and move the phone's volume.
+  // the 0-100 value is the app's own estimate for the slider, not the phone.
+  const nudgeVolume = useCallback((dir: 1 | -1) => {
+    const client = getClient();
+    if (dir > 0) client.audio.volumeUp().catch(() => {});
+    else client.audio.volumeDown().catch(() => {});
+    setVolume(v => Math.max(0, Math.min(100, v + dir * 5)));
+    setMuted(false);
+  }, []);
+
+  const slideVolume = useCallback((target: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(target)));
+    const prev = sliderAt.current ?? clamped;
+    sliderAt.current = clamped;
+    const steps = Math.round((clamped - prev) / 5);
+    const client = getClient();
+    for (let i = 0; i < Math.min(Math.abs(steps), 12); i++) {
+      if (steps > 0) client.audio.volumeUp().catch(() => {});
+      else if (steps < 0) client.audio.volumeDown().catch(() => {});
+    }
     setVolume(clamped);
     setMuted(false);
-    getClient().audio.setVolume({ level: clamped / 100 }).catch(() => {});
   }, []);
 
   const toggleMute = useCallback(() => {
-    setMuted(m => {
-      getClient().audio.setMute({ muted: !m }).catch(() => {});
-      return !m;
-    });
+    getClient().audio.muteToggle().catch(() => {});
+    setMuted(m => !m);
   }, []);
 
   // keyboard shortcuts (from original: space, r, f, +/-)
@@ -246,10 +271,10 @@ export default function App() {
         if (e.key === 'Escape') { target.blur(); exitApp(); }
         return;
       }
-      if (e.key === ' ') { e.preventDefault(); togglePlayPause(); }
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); togglePlayPause(); }
       else if (e.key === 'r' || e.key === 'R') tuneRandom();
-      else if (e.key === '+' || e.key === '=') applyVolume(volume + 5);
-      else if (e.key === '-' || e.key === '_') applyVolume(volume - 5);
+      else if (e.key === '+' || e.key === '=') nudgeVolume(1);
+      else if (e.key === '-' || e.key === '_') nudgeVolume(-1);
       else if (e.key === '1') switchTab('world');
       else if (e.key === '2') switchTab('map');
       else if (e.key === '3') switchTab('country');
@@ -269,7 +294,7 @@ export default function App() {
         if (tab === 'map') {
           setMapZoom(z => Math.max(1, Math.min(4, z + dir * 0.25)));
         } else {
-          applyVolume(volume + dir * 5);
+          nudgeVolume(dir);
         }
       }
     };
@@ -279,7 +304,7 @@ export default function App() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('wheel', onWheel);
     };
-  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, volume, applyVolume]);
+  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, nudgeVolume]);
 
   const visibleStations = useMemo(() => {
     if (tab === 'favorites') return favorites;
@@ -494,17 +519,17 @@ export default function App() {
               min={0}
               max={100}
               value={muted ? 0 : volume}
-              onChange={e => applyVolume(Number(e.target.value))}
+              onChange={e => slideVolume(Number(e.target.value))}
               className="mt-2 w-full accent-[#00a8e8]"
             />
             <div className="mt-1 flex justify-between">
-              <button onClick={() => applyVolume(volume - 5)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">−</button>
-              <button onClick={() => applyVolume(volume + 5)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">+</button>
+              <button onClick={() => nudgeVolume(-1)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">−</button>
+              <button onClick={() => nudgeVolume(1)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">+</button>
             </div>
           </div>
 
           <div className="mt-auto pt-4 font-mono text-hint leading-relaxed text-dim">
-            1-4 tabs · Space play/pause<br />
+            1-4 tabs · Space/knob play/pause<br />
             R random · F favorite · Back exits
           </div>
         </aside>
