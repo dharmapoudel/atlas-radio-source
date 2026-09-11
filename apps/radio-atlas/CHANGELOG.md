@@ -1,5 +1,17 @@
 # Atlas Radio
 
+## 0.4.0
+
+- Audio now plays through the phone: station streams are handed to the
+  companion's native stream provider (`client.player`) instead of an HTML
+  audio element on the speakerless Car Thing. Volume, mute, and the slider
+  now control the phone's output where the stream actually plays.
+- The small button below the knob (Escape/Back) now exits the app back to
+  the launcher, even while the search field has focus. Footer hint updated:
+  "Back exits."
+- Player errors now say what went wrong: no phone gateway connected,
+  companion too old to play streams, or the stream itself failed.
+
 ## 0.3.3
 
 - Map tab: drag to pan around the map (pointer drag, clamped to the map

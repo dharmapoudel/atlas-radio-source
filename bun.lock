@@ -14,6 +14,7 @@
       "name": "atlas-radio",
       "version": "0.3.3",
       "dependencies": {
+        "@bridgething/client": "^0.12.1",
         "preact": "^10.29.7",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
@@ -77,6 +78,10 @@
     "@babel/types": ["@babel/types@7.29.8", "", { "dependencies": { "@babel/helper-string-parser": "^7.29.7", "@babel/helper-validator-identifier": "^7.29.7" } }, "sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg=="],
 
     "@bridgething/catalog": ["@bridgething/catalog@0.12.1", "", { "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-Xi4SCTiPkxLZx8HhmooLqc5RpvyabCHHu2AIJvK0BKKCT2ifj20rB5JHIIZqfKxhDk3+2Jg7aTBWJ6xB2xmMaw=="],
+
+    "@bridgething/client": ["@bridgething/client@0.12.1", "", { "dependencies": { "@bridgething/lib": "0.12.1", "@msgpack/msgpack": "^3.1.3" }, "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-YvU2NcvVNhSIOZR8fBmfzIU1NhB09yrSTcyEGWNHVvvoWMf29ScoVy8ZAMauurEFh2h+Kx1Z9yzQhsSRE5MxWQ=="],
+
+    "@bridgething/lib": ["@bridgething/lib@0.12.1", "", { "dependencies": { "uuid": "^14.0.0" }, "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-nkv3yKDZujuBJqmfXFlbXTZfplAS4E3n+4CnO0vgr1jep8EVgBA7Tf7qFa/nCaRzh4HRiAPScXxYzi44PoDMtA=="],
 
     "@bridgething/source": ["@bridgething/source@0.12.1", "", { "dependencies": { "@bridgething/catalog": "0.12.1" }, "peerDependencies": { "typescript": "^6.0.3" }, "bin": { "bridgething-source": "dist/cli.js" } }, "sha512-1d8BAzoNRNLkPB/fF9ZFDQmUiaDKFfC4NCFA0MhCEkV5DNv3PjDYBLrSQ5yMlX/SvsUnjQOioFNM2FagPokh9g=="],
 
@@ -325,6 +330,8 @@
     "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "update-browserslist-db": ["update-browserslist-db@1.3.2", "", { "dependencies": { "escalade": "^3.2.0", "picocolors": "^1.1.1" }, "peerDependencies": { "browserslist": ">= 4.21.0" }, "bin": { "update-browserslist-db": "cli.js" } }, "sha512-UQ+MSxlhRm1bzjhU+DcuXfjFO1FzNtqhK5+9Yvlp90ItDLk5vT932A0rFu619nf7RVS+Y/VeaUW1jaRDqZ8VJw=="],
+
+    "uuid": ["uuid@14.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="],
 
     "vite": ["vite@8.2.2", "", { "dependencies": { "lightningcss": "^1.33.0", "picomatch": "^4.0.5", "postcss": "^8.5.26", "rolldown": "~1.2.4", "tinyglobby": "^0.2.17" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "peerDependencies": { "@types/node": "^20.19.0 || >=22.12.0", "@vitejs/devtools": "^0.4.0 || ^0.5.0", "esbuild": "^0.27.0 || ^0.28.0", "jiti": ">=1.21.0", "less": "^4.0.0", "sass": "^1.70.0", "sass-embedded": "^1.70.0", "stylus": ">=0.54.8", "sugarss": "^5.0.0", "terser": "^5.16.0", "tsx": "^4.8.1", "yaml": "^2.4.2" }, "optionalPeers": ["@types/node", "@vitejs/devtools", "esbuild", "jiti", "less", "sass", "sass-embedded", "stylus", "sugarss", "terser", "tsx", "yaml"], "bin": { "vite": "bin/vite.js" } }, "sha512-cFKLV/PRgAUlIRm5WjMjJ86jrftzpqcgH+Us+DS8mI3CDNiH30Whrz8uHL3+MOLPAgqbMBAqWdAHAphOAM+z/Q=="],
 

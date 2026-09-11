@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { POPULAR_COUNTRIES, radioApi } from './radioApi';
 import { store } from './store';
+import { getClient } from './client';
 import type { Station, TabMode } from './types';
 import WorldMap from './WorldMap';
+
+// Built-in launcher (hub) webapp id. The client SDK cannot list the launcher,
+// so exiting goes through this well-known builtin id.
+const HUB_WEBAPP_ID = '019693c0-5c6a-71f0-a89d-7e2a4d9c0a01';
 
 function stationMeta(s: Station): string {
   const parts: string[] = [];
@@ -13,8 +18,6 @@ function stationMeta(s: Station): string {
 }
 
 export default function App() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   const [tab, setTab] = useState<TabMode>('world');
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,7 @@ export default function App() {
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [liveTitle, setLiveTitle] = useState<string | null>(null);
 
   const [favorites, setFavorites] = useState<Station[]>(() => store.getFavorites());
   const [recent, setRecent] = useState<Station[]>(() => store.getRecent());
@@ -111,80 +115,127 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- playback ----
+  // ---- playback via the phone ----
+  // The Car Thing has no speaker, so streams play on the phone through the
+  // companion's stream provider (claims http/https). Now-playing state and
+  // errors arrive back over client.player events.
 
   const playStation = useCallback((station: Station) => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const client = getClient();
     setAudioError(null);
     setAudioLoading(true);
     setIsPaused(false);
+    setLiveTitle(null);
     setPlaying(station);
     setSelectedUuid(station.uuid);
-    audio.src = station.url;
-    audio.play().catch(() => {
+    client.player.play({ uri: station.url, context: null }).catch(() => {
       setAudioLoading(false);
-      setAudioError('Could not play this station. Try another.');
+      setAudioError('Could not reach the daemon. Is the device on?');
     });
     radioApi.click(station.uuid);
     setRecent(store.recordPlayed(station));
   }, []);
 
   const togglePlayPause = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !playing) return;
-    if (audio.paused) {
-      audio.play().catch(() => setAudioError('Could not resume playback'));
-      setIsPaused(false);
+    const client = getClient();
+    if (!playing) return;
+    if (isPaused) {
+      client.player.resume().catch(() => setAudioError('Could not resume playback'));
     } else {
-      audio.pause();
-      setIsPaused(true);
+      client.player.pause().catch(() => {});
     }
-  }, [playing]);
+  }, [playing, isPaused]);
 
   const stop = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
+    getClient().player.pause().catch(() => {});
     setPlaying(null);
     setIsPaused(false);
     setAudioLoading(false);
     setAudioError(null);
+    setLiveTitle(null);
   }, []);
+
+  const exitApp = useCallback(() => {
+    stop();
+    getClient().webapp.activate({ id: HUB_WEBAPP_ID }).then(res => {
+      if (!res.ok) console.warn('exit to launcher failed', res.kind, res.error);
+    }).catch(() => {});
+  }, [stop]);
+
+  // phone now-playing snapshots and player errors
+  useEffect(() => {
+    const client = getClient();
+    const offSnapshot = client.player.onSnapshot(reply => {
+      const state = reply.state.playback.state;
+      setIsPaused(state === 'paused');
+      if (state === 'playing') {
+        setAudioLoading(false);
+        setAudioError(null);
+        const title = reply.state.track?.title ?? null;
+        setLiveTitle(t => (title && title !== playing?.name ? title : t));
+      } else if (state === 'stopped') {
+        setAudioLoading(false);
+      }
+    });
+    const offError = client.player.onErrorReply(reply => {
+      const err = reply.error;
+      setAudioLoading(false);
+      if (err.type === 'noGateway') {
+        setAudioError('Connect your phone to hear audio.');
+      } else if (err.type === 'schemeUnclaimed') {
+        setAudioError('Update the companion app to play streams.');
+      } else if (err.type === 'playFailed') {
+        setAudioError('Stream failed. Try another station.');
+      } else {
+        setAudioError('Could not play this station. Try another.');
+      }
+    });
+    const offStreamError = client.player.onErrorEvent(reply => {
+      if (reply.error.type === 'playFailed') {
+        setAudioLoading(false);
+        setAudioError('Stream failed. Try another station.');
+      }
+    });
+    // prime from the phone's current state in case it is already playing
+    client.player.stateGet().then(res => {
+      if (!res.ok) return;
+      const st = res.response.state;
+      if (st.playback.state === 'playing' || st.playback.state === 'paused') {
+        setIsPaused(st.playback.state === 'paused');
+        setAudioLoading(false);
+      }
+    }).catch(() => {});
+    return () => { offSnapshot(); offError(); offStreamError(); };
+  }, [playing?.name]);
 
   const toggleFavorite = useCallback((station: Station) => {
     setFavorites(store.toggleFavorite(station));
   }, []);
 
-  // audio element events
+  // phone volume: the knob and slider drive the phone's media volume, since
+  // that is where the stream actually plays
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onPlaying = () => { setAudioLoading(false); setAudioError(null); setIsPaused(false); };
-    const onPause = () => { if (!audio.ended) setIsPaused(true); };
-    const onError = () => { setAudioLoading(false); setAudioError('Stream failed. Try another station.'); };
-    const onWaiting = () => setAudioLoading(true);
-    audio.addEventListener('playing', onPlaying);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('error', onError);
-    audio.addEventListener('waiting', onWaiting);
-    return () => {
-      audio.removeEventListener('playing', onPlaying);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('error', onError);
-      audio.removeEventListener('waiting', onWaiting);
-    };
+    const client = getClient();
+    const off = client.audio.onVolumeChanged(msg => {
+      setVolume(Math.round(msg.level * 100));
+      setMuted(msg.muted);
+    });
+    return () => { off(); };
   }, []);
 
-  // volume
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = muted ? 0 : volume / 100;
-    store.setVolume(volume);
-  }, [volume, muted]);
+  const applyVolume = useCallback((v: number) => {
+    const clamped = Math.max(0, Math.min(100, v));
+    setVolume(clamped);
+    setMuted(false);
+    getClient().audio.setVolume({ level: clamped / 100 }).catch(() => {});
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setMuted(m => {
+      getClient().audio.setMute({ muted: !m }).catch(() => {});
+      return !m;
+    });
+  }, []);
 
   // keyboard shortcuts (from original: space, r, f, +/-)
   // note: "m" is the Mode button on Car Thing, so mute is on-screen only
@@ -192,18 +243,18 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-        if (e.key === 'Escape') { target.blur(); }
+        if (e.key === 'Escape') { target.blur(); exitApp(); }
         return;
       }
       if (e.key === ' ') { e.preventDefault(); togglePlayPause(); }
       else if (e.key === 'r' || e.key === 'R') tuneRandom();
-      else if (e.key === '+' || e.key === '=') setVolume(v => Math.min(100, v + 5));
-      else if (e.key === '-' || e.key === '_') setVolume(v => Math.max(0, v - 5));
+      else if (e.key === '+' || e.key === '=') applyVolume(volume + 5);
+      else if (e.key === '-' || e.key === '_') applyVolume(volume - 5);
       else if (e.key === '1') switchTab('world');
       else if (e.key === '2') switchTab('map');
       else if (e.key === '3') switchTab('country');
       else if (e.key === '4') switchTab('favorites');
-      else if (e.key === 'Escape' && playing) stop();
+      else if (e.key === 'Escape') exitApp();
       else if ((e.key === 'f' || e.key === 'F') && selectedUuid) {
         const s = stations.find(x => x.uuid === selectedUuid);
         if (s) toggleFavorite(s);
@@ -218,8 +269,7 @@ export default function App() {
         if (tab === 'map') {
           setMapZoom(z => Math.max(1, Math.min(4, z + dir * 0.25)));
         } else {
-          setVolume(v => Math.max(0, Math.min(100, v + dir * 5)));
-          setMuted(false);
+          applyVolume(volume + dir * 5);
         }
       }
     };
@@ -229,7 +279,7 @@ export default function App() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('wheel', onWheel);
     };
-  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, playing, stop, tab]);
+  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, volume, applyVolume]);
 
   const visibleStations = useMemo(() => {
     if (tab === 'favorites') return favorites;
@@ -249,7 +299,6 @@ export default function App() {
 
   return (
     <div className="relative flex h-full w-full flex-col bg-bg text-off-white">
-      <audio ref={audioRef} preload="none" />
 
       {/* header */}
       <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule px-4">
@@ -395,6 +444,9 @@ export default function App() {
                 {audioLoading ? 'Tuning…' : playing.name}
               </div>
               <div className="mt-1 font-mono text-hint text-dim">{stationMeta(playing)}</div>
+              {liveTitle && !audioLoading && (
+                <div className="mt-1 font-body text-body text-accent">♪ {liveTitle}</div>
+              )}
               {audioError && (
                 <div className="mt-2 font-mono text-hint text-warn">{audioError}</div>
               )}
@@ -425,14 +477,14 @@ export default function App() {
             </div>
           )}
 
-          {/* volume */}
+          {/* volume: phone media volume, the stream plays on the phone */}
           <div className="mt-6">
             <div className="flex items-center justify-between">
               <div className="font-mono text-eyebrow uppercase tracking-[0.2em] text-dim">Volume</div>
               <button
-                onClick={() => setMuted(m => !m)}
+                onClick={toggleMute}
                 className="font-mono text-hint text-dim"
-                title="Mute (M)"
+                title="Mute"
               >
                 {muted ? 'Muted' : `${volume}%`}
               </button>
@@ -442,18 +494,18 @@ export default function App() {
               min={0}
               max={100}
               value={muted ? 0 : volume}
-              onChange={e => { setVolume(Number(e.target.value)); setMuted(false); }}
+              onChange={e => applyVolume(Number(e.target.value))}
               className="mt-2 w-full accent-[#00a8e8]"
             />
             <div className="mt-1 flex justify-between">
-              <button onClick={() => setVolume(v => Math.max(0, v - 5))} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">−</button>
-              <button onClick={() => setVolume(v => Math.min(100, v + 5))} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">+</button>
+              <button onClick={() => applyVolume(volume - 5)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">−</button>
+              <button onClick={() => applyVolume(volume + 5)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">+</button>
             </div>
           </div>
 
           <div className="mt-auto pt-4 font-mono text-hint leading-relaxed text-dim">
             1-4 tabs · Space play/pause<br />
-            R random · F favorite · wheel volume
+            R random · F favorite · Back exits
           </div>
         </aside>
       </div>
