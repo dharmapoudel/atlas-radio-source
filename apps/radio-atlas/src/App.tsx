@@ -67,6 +67,17 @@ export default function App() {
   // guards against a single knob press arriving as two key events, which
   // would pause then instantly resume
   const lastToggleAt = useRef(0);
+  // map zoom persists across tab switches; the knob only zooms after an
+  // explicit tap on the map, otherwise it stays on volume
+  const [mapEngaged, setMapEngaged] = useState(false);
+  const mapWrapRef = useRef<HTMLDivElement | null>(null);
+  // true only while this app owns the phone's current playback: set when the
+  // user starts a station here, or when the phone confirms a restored session
+  // is ours via the playback context uri. the knob never drives the phone
+  // otherwise (e.g. phone playing spotify).
+  const ownsPlayback = useRef(false);
+  const CONTEXT_PREFIX = 'radio-atlas:station:';
+  const contextUriFor = (uuid: string) => `${CONTEXT_PREFIX}${uuid}`;
   // guards background refreshes from overwriting a newer tab's stations
   const loadSeq = useRef(0);
 
@@ -191,7 +202,8 @@ export default function App() {
     setPlaying(station);
     setSelectedUuid(station.uuid);
     store.setNowPlaying(station);
-    client.player.play({ uri: station.url, context: null }).catch(() => {
+    ownsPlayback.current = true;
+    client.player.play({ uri: station.url, context: { contextUri: contextUriFor(station.uuid) } }).catch(() => {
       setAudioLoading(false);
       setAudioError('Could not reach the daemon. Is the device on?');
     });
@@ -203,8 +215,10 @@ export default function App() {
     const now = Date.now();
     if (now - lastToggleAt.current < 700) return;
     lastToggleAt.current = now;
+    // explicit check: never drive the phone's playback unless this app
+    // started (or verified) the current stream
+    if (!playing || !ownsPlayback.current) return;
     const client = getClient();
-    if (!playing) return;
     if (isPaused) {
       client.player.resume().catch(() => setAudioError('Could not resume playback'));
     } else {
@@ -220,6 +234,7 @@ export default function App() {
     setAudioError(null);
     setLiveTitle(null);
     store.setNowPlaying(null);
+    ownsPlayback.current = false;
   }, []);
 
   // exiting leaves the stream playing on the phone; the app is a remote, not
@@ -265,19 +280,26 @@ export default function App() {
       }
     });
     // prime from the phone's current state in case it is already playing.
-    // if our stream survived an exit, restore it so pause/stop keep working.
+    // a previous session is only restored when the phone confirms the
+    // stream is ours via the playback context uri; otherwise the knob
+    // must not touch the phone's playback (e.g. spotify).
     client.player.stateGet().then(res => {
       if (!res.ok) return;
       const st = res.response.state;
-      if (st.playback.state === 'playing' || st.playback.state === 'paused') {
+      const ctxUri = st.context?.uri;
+      const ours = (st.playback.state === 'playing' || st.playback.state === 'paused') &&
+        !!ctxUri && ctxUri.startsWith(CONTEXT_PREFIX);
+      if (ours) {
         setIsPaused(st.playback.state === 'paused');
         setAudioLoading(false);
+        const uuid = (ctxUri as string).slice(CONTEXT_PREFIX.length);
         const np = store.getNowPlaying();
-        if (np) {
+        if (np && np.uuid === uuid) {
           setPlaying(np);
           setSelectedUuid(np.uuid);
+          ownsPlayback.current = true;
         }
-      } else {
+      } else if (st.playback.state !== 'playing' && st.playback.state !== 'paused') {
         store.setNowPlaying(null);
       }
     }).catch(() => {});
@@ -321,12 +343,12 @@ export default function App() {
       }
     };
     // rotary wheel: horizontal deltaX adjusts volume (Car Thing wheel);
-    // on the map tab it zooms the map instead
+    // on the map tab it zooms only after an explicit tap on the map
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();
         const dir = e.deltaX > 0 ? 1 : -1;
-        if (tab === 'map') {
+        if (tab === 'map' && mapEngaged) {
           setMapZoom(z => Math.max(1, Math.min(4, z + dir * 0.25)));
         } else {
           nudgeVolume(dir);
@@ -339,7 +361,7 @@ export default function App() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('wheel', onWheel);
     };
-  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, nudgeVolume]);
+  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, mapEngaged, nudgeVolume]);
 
   const visibleStations = useMemo(() => {
     if (tab === 'favorites') return favorites;
@@ -352,10 +374,22 @@ export default function App() {
   const switchTab = (t: TabMode) => {
     setTab(t);
     setError(null);
-    if (t === 'map') setMapZoom(1);
+    setMapEngaged(false);
     if (t === 'world' || t === 'map') loadWorld();
     if (t === 'country') { setCountry(null); setStations([]); }
   };
+
+  // tapping anywhere outside the map hands the knob back to volume
+  useEffect(() => {
+    if (!mapEngaged) return;
+    const onDown = (e: PointerEvent) => {
+      if (mapWrapRef.current && !mapWrapRef.current.contains(e.target as Node)) {
+        setMapEngaged(false);
+      }
+    };
+    window.addEventListener('pointerdown', onDown);
+    return () => window.removeEventListener('pointerdown', onDown);
+  }, [mapEngaged]);
 
   return (
     <div className="relative flex h-full w-full flex-col bg-bg text-off-white">
@@ -376,7 +410,7 @@ export default function App() {
           />
           <button
             type="submit"
-            className="h-10 rounded border border-edge px-4 font-mono text-body text-near active:bg-neutral-soft"
+            className="h-10 rounded border border-edge px-4 font-mono text-body text-near transition-transform active:scale-95 active:bg-neutral-soft"
           >
             Search
           </button>
@@ -384,7 +418,7 @@ export default function App() {
         <button
           onClick={tuneRandom}
           title="Tune randomly (R)"
-          className="h-10 rounded border border-accent bg-accent px-4 font-mono text-body text-screen active:opacity-80"
+          className="h-10 rounded border border-accent bg-accent px-4 font-mono text-body text-screen transition-transform active:scale-95 active:opacity-80"
         >
           Random
         </button>
@@ -396,7 +430,7 @@ export default function App() {
           <button
             key={t}
             onClick={() => switchTab(t)}
-            className={`rounded px-4 py-1.5 font-mono text-body capitalize ${
+            className={`rounded px-4 py-1.5 font-mono text-body capitalize transition-transform active:scale-95 ${
               tab === t ? 'bg-accent-soft text-accent' : 'text-dim active:bg-neutral-soft'
             }`}
           >
@@ -414,23 +448,31 @@ export default function App() {
       {/* body */}
       <div className="flex min-h-0 flex-1">
         {/* station list / country grid / map */}
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main key={tab} className="min-w-0 flex-1 overflow-y-auto animate-fade-in">
           {tab === 'map' ? (
-            <WorldMap
-              stations={stations}
-              playingUuid={playing?.uuid ?? null}
-              isPaused={isPaused}
-              zoom={mapZoom}
-              onPlayStation={playStation}
-              onBrowseCountry={(code, name) => loadCountry(code, name)}
-            />
+            <div ref={mapWrapRef} className="h-full w-full">
+              <WorldMap
+                stations={stations}
+                playingUuid={playing?.uuid ?? null}
+                isPaused={isPaused}
+                zoom={mapZoom}
+                engaged={mapEngaged}
+                loading={loading}
+                error={error}
+                onEngage={() => setMapEngaged(true)}
+                onRetry={() => loadWorld()}
+                onPlayStation={playStation}
+                onBrowseCountry={(code, name) => loadCountry(code, name)}
+              />
+            </div>
           ) : tab === 'country' && !country ? (
             <div className="grid h-full grid-cols-3 grid-rows-4 gap-2 p-3">
-              {POPULAR_COUNTRIES.map(c => (
+              {POPULAR_COUNTRIES.map((c, i) => (
                 <button
                   key={c.code}
                   onClick={() => loadCountry(c.code, c.name)}
-                  className="rounded border border-edge bg-screen p-3 text-left active:bg-neutral-soft"
+                  className="rounded border border-edge bg-screen p-3 text-left animate-fade-up active:bg-neutral-soft"
+                  style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
                 >
                   <div className="truncate font-display text-row font-medium">{c.name}</div>
                   <div className="font-mono text-hint text-dim">{c.code}</div>
@@ -463,11 +505,11 @@ export default function App() {
             </div>
           ) : (
             <ul className="divide-y divide-rule">
-              {visibleStations.map(s => {
+              {visibleStations.map((s, i) => {
                 const isPlaying = playing?.uuid === s.uuid;
                 const isFav = favUuids.has(s.uuid);
                 return (
-                  <li key={s.uuid}>
+                  <li key={s.uuid} className="animate-fade-up" style={{ animationDelay: `${Math.min(i * 20, 240)}ms` }}>
                     <div
                       className={`flex items-center gap-3 px-4 py-2.5 ${isPlaying ? 'bg-accent-soft' : ''} ${selectedUuid === s.uuid ? 'bg-neutral-soft' : ''}`}
                     >
@@ -500,12 +542,12 @@ export default function App() {
           <div className="font-mono text-eyebrow uppercase tracking-[0.2em] text-dim">Now playing</div>
           {playing ? (
             <>
-              <div className="mt-2 font-display text-hero font-medium leading-tight">
-                {audioLoading ? 'Tuning…' : playing.name}
+              <div key={playing.uuid} className="mt-2 font-display text-hero font-medium leading-tight animate-fade-up">
+                {audioLoading ? <span className="animate-pulse-dot">Tuning…</span> : playing.name}
               </div>
               <div className="mt-1 font-mono text-hint text-dim">{stationMeta(playing)}</div>
               {liveTitle && !audioLoading && (
-                <div className="mt-1 font-body text-body text-accent">♪ {liveTitle}</div>
+                <div key={liveTitle} className="mt-1 font-body text-body text-accent animate-fade-in">♪ {liveTitle}</div>
               )}
               {audioError && (
                 <div className="mt-2 font-mono text-hint text-warn">{audioError}</div>
@@ -513,19 +555,19 @@ export default function App() {
               <div className="mt-4 flex gap-2">
                 <button
                   onClick={togglePlayPause}
-                  className="flex-1 rounded border border-accent bg-accent px-3 py-2.5 font-mono text-row text-screen active:opacity-80"
+                  className="flex-1 rounded border border-accent bg-accent px-3 py-2.5 font-mono text-row text-screen transition-transform active:scale-95 active:opacity-80"
                 >
                   {audioLoading ? '…' : isPaused ? '▶ Play' : '❚❚ Pause'}
                 </button>
                 <button
                   onClick={stop}
-                  className="rounded border border-edge px-3 py-2.5 font-mono text-row text-near active:bg-neutral-soft"
+                  className="rounded border border-edge px-3 py-2.5 font-mono text-row text-near transition-transform active:scale-95 active:bg-neutral-soft"
                 >
                   ■
                 </button>
                 <button
                   onClick={() => toggleFavorite(playing)}
-                  className={`rounded border border-edge px-3 py-2.5 font-mono text-row active:bg-neutral-soft ${favUuids.has(playing.uuid) ? 'text-accent' : 'text-dim'}`}
+                  className={`rounded border border-edge px-3 py-2.5 font-mono text-row transition-transform active:scale-95 active:bg-neutral-soft ${favUuids.has(playing.uuid) ? 'text-accent' : 'text-dim'}`}
                 >
                   {favUuids.has(playing.uuid) ? '★' : '☆'}
                 </button>
@@ -539,7 +581,7 @@ export default function App() {
 
           <div className="mt-auto pt-4 font-mono text-hint leading-relaxed text-dim">
             1-5 tabs · Space/knob play/pause<br />
-            Knob turn: volume (map: zoom)<br />
+            {tab === 'map' && mapEngaged ? 'Knob: zoom map · tap outside for volume' : 'Knob: volume · tap map to zoom'}<br />
             R random · F favorite · Back exits (keeps playing)
           </div>
         </aside>

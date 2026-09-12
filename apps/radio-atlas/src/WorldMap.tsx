@@ -36,11 +36,16 @@ interface Props {
   playingUuid: string | null;
   isPaused: boolean;
   zoom: number;
+  engaged: boolean;
+  loading: boolean;
+  error: string | null;
+  onEngage: () => void;
+  onRetry: () => void;
   onPlayStation: (s: Station) => void;
   onBrowseCountry: (code: string, name: string) => void;
 }
 
-export default function WorldMap({ stations, playingUuid, isPaused, zoom, onPlayStation, onBrowseCountry }: Props) {
+export default function WorldMap({ stations, playingUuid, isPaused, zoom, engaged, loading, error, onEngage, onRetry, onPlayStation, onBrowseCountry }: Props) {
   const paths = useMemo(
     () => COUNTRIES.map(c => ({ c: c.c, n: c.n, d: countryPath(c.p) })),
     []
@@ -57,6 +62,7 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, onPlay
   const dragged = useRef(false);
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    onEngage();
     dragged.current = false;
     drag.current = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
@@ -121,11 +127,16 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, onPlay
         ))}
 
         {/* station signals */}
-        {dots.map(s => {
+        {dots.map((s, i) => {
           const [x, y] = project(s.longitude as number, s.latitude as number);
           const isPlaying = playingUuid === s.uuid;
           return (
-            <g key={s.uuid} onClick={() => { if (tapGuard()) return; onPlayStation(s); }} style={{ cursor: 'pointer' }}>
+            <g
+              key={s.uuid}
+              onClick={() => { if (tapGuard()) return; onPlayStation(s); }}
+              style={{ cursor: 'pointer', animationDelay: `${Math.min(i * 8, 400)}ms` }}
+              className="animate-fade-in"
+              >
               <circle cx={x} cy={y} r={10} fill="transparent" />
               <circle
                 cx={x}
@@ -144,8 +155,30 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, onPlay
         </g>
       </svg>
 
+      {loading && dots.length === 0 && (
+        <div className="absolute inset-0 grid place-items-center bg-screen/60 animate-fade-in">
+          <div className="font-mono text-body text-dim animate-pulse-dot">Tuning in…</div>
+        </div>
+      )}
+
+      {error && dots.length === 0 && !loading && (
+        <div className="absolute inset-0 grid place-items-center bg-screen/60 animate-fade-in">
+          <div className="p-8 text-center">
+            <div className="font-mono text-body text-warn">{error}</div>
+            <button
+              onClick={onRetry}
+              className="mt-4 rounded border border-edge px-4 py-2 font-mono text-body text-near transition-transform active:scale-95 active:bg-neutral-soft"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="pointer-events-none absolute bottom-2 left-4 font-mono text-hint text-dim">
-        Drag to pan · knob zooms · tap a dot to play · tap a country to browse · {dots.length} signals
+        {engaged
+          ? `Drag to pan · knob zooms · tap a dot to play · tap a country to browse · ${dots.length} signals`
+          : `Tap the map for knob zoom · tap a dot to play · tap a country to browse · ${dots.length} signals`}
       </div>
     </div>
   );

@@ -1,5 +1,22 @@
 # Atlas Radio
 
+## 0.4.4
+
+- Map zoom now persists when switching tabs; it no longer resets to 1x.
+- The knob controls volume by default everywhere. On the Map tab it zooms
+  only after you explicitly tap the map, and tapping anywhere outside the
+  map hands the knob back to volume. The footer hint always shows the
+  current mode.
+- The play/pause knob action now has an explicit ownership check: it never
+  sends play/pause to the phone unless this app started (or verified) the
+  current stream, so it can't hijack other audio like Spotify.
+- Map no longer shows an empty ocean while loading: a "Tuning in…" overlay
+  appears when there are no cached dots yet, and a real error with a Retry
+  button replaces the silent "0 signals" if the load fails.
+- Animation polish: tabs fade in, station rows and country buttons enter
+  with a short stagger, map signals fade in, now-playing transitions are
+  animated, and buttons have press-scale feedback.
+
 ## 0.4.3
 
 - Station names are cleaned up: directory entries carrying URL and legal junk
