@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-12T19:48:49.989Z",
+  "updated_at": "2026-09-12T20:13:56.409Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.4.3",
+          "released_at": "2026-09-12T20:13:56.371Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.3.zip",
+            "size": 902375,
+            "sha256": "6a9088b810ff7d7e25422eb40285f0faae234610611e22547e317c33afab9a13"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Station names are cleaned up: directory entries carrying URL and legal junk\n  (e.g. \"Hot Tejano (Austin) - Online - www.hotfejano.com - hottejano.com LLC\")\n  now show as \"Hot Tejano (Austin) - Austin, Texas\". Now-playing titles also\n  strip bare URLs. Old favorites, history, and caches heal automatically.\n- Back/Esc no longer stops playback: the stream keeps playing on the phone\n  when you exit to the launcher, and reopening the app restores the session\n  so pause/stop keep working. The ■ button is still the explicit stop.\n- Map is now the first tab (keys 1-5 cover all five tabs).\n- Countries grid is fixed to exactly four rows so it never scrolls.\n- World tab shuffles its station list on every app open."
+        },
         {
           "version": "0.4.2",
           "released_at": "2026-09-12T19:48:49.986Z",
