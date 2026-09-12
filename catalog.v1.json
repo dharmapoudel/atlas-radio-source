@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-12T20:34:45.797Z",
+  "updated_at": "2026-09-12T20:49:15.102Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.4.5",
+          "released_at": "2026-09-12T20:49:15.098Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.5.zip",
+            "size": 903173,
+            "sha256": "cdc298b6bde115b6caa5cba052ec7e2ef2792b06a76be93b49b5056df288f8c2"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- New icon: the radio keeps its look, but the speaker grille is now a small\n  earth globe instead of dots, the radio waves are gone, and the antenna is\n  shorter.\n- Fixed the phone-switching-audio confusion: if you start a podcast or other\n  audio on the phone while a station was showing, the app no longer keeps the\n  old station marked as playing and no longer shows the podcast title as the\n  station's live title. The now-playing panel instead shows \"On your phone\"\n  with the track title, and the knob can't pause or resume audio the app\n  didn't start. Tapping any station takes over again as before."
+        },
         {
           "version": "0.4.4",
           "released_at": "2026-09-12T20:34:45.793Z",
