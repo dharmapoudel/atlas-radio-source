@@ -1,5 +1,11 @@
 # Atlas Radio
 
+## 0.4.6
+
+- Polished the icon: the radio artwork is larger in the frame and the blue
+  now matches the Sonos app's sky blue.
+- Refreshed the store screenshots from the current build.
+
 ## 0.4.5
 
 - New icon: the radio keeps its look, but the speaker grille is now a small
