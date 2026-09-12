@@ -1,5 +1,17 @@
 # Atlas Radio
 
+## 0.4.5
+
+- New icon: the radio keeps its look, but the speaker grille is now a small
+  earth globe instead of dots, the radio waves are gone, and the antenna is
+  shorter.
+- Fixed the phone-switching-audio confusion: if you start a podcast or other
+  audio on the phone while a station was showing, the app no longer keeps the
+  old station marked as playing and no longer shows the podcast title as the
+  station's live title. The now-playing panel instead shows "On your phone"
+  with the track title, and the knob can't pause or resume audio the app
+  didn't start. Tapping any station takes over again as before.
+
 ## 0.4.4
 
 - Map zoom now persists when switching tabs; it no longer resets to 1x.

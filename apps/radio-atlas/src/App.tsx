@@ -77,7 +77,24 @@ export default function App() {
   // otherwise (e.g. phone playing spotify).
   const ownsPlayback = useRef(false);
   const CONTEXT_PREFIX = 'radio-atlas:station:';
+  // the companion tags phone system media (spotify, podcasts…) with a
+  // "system:<package>:context" uri; our own streams never carry one.
+  const SYSTEM_CONTEXT_PREFIX = 'system:';
   const contextUriFor = (uuid: string) => `${CONTEXT_PREFIX}${uuid}`;
+  // the phone moved on to something else: drop our session and say so honestly
+  const [externalTitle, setExternalTitle] = useState<string | null>(null);
+  const noteExternalPlayback = useCallback((trackTitle: string | null | undefined, paused: boolean) => {
+    setPlaying(null);
+    setSelectedUuid(null);
+    setLiveTitle(null);
+    setAudioLoading(false);
+    setAudioError(null);
+    setIsPaused(paused);
+    ownsPlayback.current = false;
+    store.setNowPlaying(null);
+    const t = (trackTitle ?? '').trim();
+    setExternalTitle(t ? t : 'something');
+  }, []);
   // guards background refreshes from overwriting a newer tab's stations
   const loadSeq = useRef(0);
 
@@ -202,6 +219,7 @@ export default function App() {
     setPlaying(station);
     setSelectedUuid(station.uuid);
     store.setNowPlaying(station);
+    setExternalTitle(null);
     ownsPlayback.current = true;
     client.player.play({ uri: station.url, context: { contextUri: contextUriFor(station.uuid) } }).catch(() => {
       setAudioLoading(false);
@@ -249,12 +267,21 @@ export default function App() {
   useEffect(() => {
     const client = getClient();
     const offSnapshot = client.player.onSnapshot(reply => {
-      const state = reply.state.playback.state;
+      const st = reply.state;
+      const state = st.playback.state;
+      const ctxUri = st.context?.uri ?? null;
+      // external takeover: never show a foreign track as our live title,
+      // and never keep claiming the station is playing
+      if (ctxUri && ctxUri.startsWith(SYSTEM_CONTEXT_PREFIX)) {
+        noteExternalPlayback(st.track?.title, state === 'paused');
+        return;
+      }
+      setExternalTitle(null);
       setIsPaused(state === 'paused');
       if (state === 'playing') {
         setAudioLoading(false);
         setAudioError(null);
-        const title = reply.state.track?.title ?? null;
+        const title = st.track?.title ?? null;
         setLiveTitle(t => cleanLiveTitle(title, playing?.name ?? '') ?? t);
       } else if (state === 'stopped') {
         setAudioLoading(false);
@@ -287,6 +314,11 @@ export default function App() {
       if (!res.ok) return;
       const st = res.response.state;
       const ctxUri = st.context?.uri;
+      // phone is on external media: show it honestly instead of "pick a station"
+      if (ctxUri && ctxUri.startsWith(SYSTEM_CONTEXT_PREFIX)) {
+        noteExternalPlayback(st.track?.title, st.playback.state === 'paused');
+        return;
+      }
       const ours = (st.playback.state === 'playing' || st.playback.state === 'paused') &&
         !!ctxUri && ctxUri.startsWith(CONTEXT_PREFIX);
       if (ours) {
@@ -572,6 +604,12 @@ export default function App() {
                   {favUuids.has(playing.uuid) ? '★' : '☆'}
                 </button>
               </div>
+            </>
+          ) : externalTitle ? (
+            <>
+              <div className="mt-2 font-display text-hero font-medium leading-tight animate-fade-up">On your phone</div>
+              <div className="mt-1 truncate font-body text-body text-accent">♪ {externalTitle}</div>
+              <div className="mt-4 font-mono text-hint text-dim">Pick a station to take over.</div>
             </>
           ) : (
             <div className="mt-2 font-body text-body text-dim">
