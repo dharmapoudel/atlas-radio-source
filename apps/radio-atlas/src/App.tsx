@@ -17,6 +17,24 @@ function stationMeta(s: Station): string {
   return parts.join(' · ');
 }
 
+// stream icy metadata often arrives as raw key="value" pairs, e.g.
+// artist - text="title" song_spot="m" mediabaseid="123"; extract the human part
+export function cleanLiveTitle(raw: string | null | undefined, stationName: string): string | null {
+  if (!raw) return null;
+  let t = raw.trim();
+  if (!t) return null;
+  const textAttr = t.match(/text="([^"]+)"/i);
+  if (textAttr) {
+    const before = t.slice(0, textAttr.index).replace(/[-–—\s]+$/, '').trim();
+    t = before ? `${before} - ${textAttr[1]}` : textAttr[1];
+  } else {
+    t = t.replace(/(^|\s+)[A-Za-z_][\w-]*=(?:"[^"]*"|'[^']*'|[^\s]+)/g, '').trim();
+    t = t.replace(/^[-–—\s]+|[-–—\s]+$/g, '').trim();
+  }
+  if (!t || t.toLowerCase() === stationName.toLowerCase()) return null;
+  return t.slice(0, 160);
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabMode>('world');
   const [stations, setStations] = useState<Station[]>([]);
@@ -34,46 +52,70 @@ export default function App() {
 
   const [favorites, setFavorites] = useState<Station[]>(() => store.getFavorites());
   const [recent, setRecent] = useState<Station[]>(() => store.getRecent());
-  const [volume, setVolume] = useState(() => store.getVolume());
-  const [muted, setMuted] = useState(false);
   // guards against a single knob press arriving as two key events, which
   // would pause then instantly resume
   const lastToggleAt = useRef(0);
-  // last slider position, so drag deltas turn into volume steps
-  const sliderAt = useRef<number | null>(null);
+  // guards background refreshes from overwriting a newer tab's stations
+  const loadSeq = useRef(0);
 
   const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
 
   // ---- data loading ----
+  // station lists are cached in localstorage and refreshed in the background,
+  // so tabs open instantly after the first load. a failed fetch retries once
+  // after a delay, since the phone gateway proxy is often not up yet at launch.
+
+  const loadCached = useCallback(async (
+    key: string,
+    fetchFresh: () => Promise<Station[]>,
+    emptyError: string,
+  ) => {
+    const seq = ++loadSeq.current;
+    setError(null);
+    const cached = store.getCachedStations(key);
+    if (cached) {
+      setStations(cached.data);
+      setLoading(false);
+      fetchFresh().then(data => {
+        if (loadSeq.current !== seq) return;
+        store.setCachedStations(key, data);
+        setStations(data);
+      }).catch(() => {});
+      return;
+    }
+    setLoading(true);
+    const attempt = async (): Promise<Station[]> => {
+      try {
+        return await fetchFresh();
+      } catch {
+        await new Promise(r => setTimeout(r, 2500));
+        return fetchFresh();
+      }
+    };
+    try {
+      const data = await attempt();
+      if (loadSeq.current !== seq) return;
+      store.setCachedStations(key, data);
+      setStations(data);
+    } catch (e) {
+      if (loadSeq.current === seq) setError(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : emptyError);
+    } finally {
+      if (loadSeq.current === seq) setLoading(false);
+    }
+  }, []);
 
   const loadWorld = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     setCountry(null);
-    try {
-      const data = await radioApi.world(100);
-      setStations(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load stations');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await loadCached('world', () => radioApi.world(100),
+      'Could not reach the station directory. Check your connection.');
+  }, [loadCached]);
 
   const loadCountry = useCallback(async (code: string, name: string) => {
-    setLoading(true);
-    setError(null);
     setTab('country');
     setCountry({ code, name });
-    try {
-      const data = await radioApi.byCountry(code, 50);
-      setStations(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load stations');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await loadCached(`country:${code}`, () => radioApi.byCountry(code, 50),
+      'Could not reach the station directory. Check your connection.');
+  }, [loadCached]);
 
   const runSearch = useCallback(async (q: string) => {
     const text = q.trim();
@@ -180,7 +222,7 @@ export default function App() {
         setAudioLoading(false);
         setAudioError(null);
         const title = reply.state.track?.title ?? null;
-        setLiveTitle(t => (title && title !== playing?.name ? title : t));
+        setLiveTitle(t => cleanLiveTitle(title, playing?.name ?? '') ?? t);
       } else if (state === 'stopped') {
         setAudioLoading(false);
       }
@@ -220,46 +262,12 @@ export default function App() {
     setFavorites(store.toggleFavorite(station));
   }, []);
 
-  // phone volume: the knob and slider drive the phone's media volume, since
-  // that is where the stream actually plays
-  useEffect(() => {
-    const client = getClient();
-    const off = client.audio.onVolumeChanged(msg => {
-      setVolume(Math.round(msg.level * 100));
-      setMuted(msg.muted);
-    });
-    return () => { off(); };
-  }, []);
-
-  // phone volume: relative steps only. absolute setvolume/setmute never reach
-  // the phone (ios has no volumebackend, so the companion rejects them), while
-  // volumeup/down/mutetoggle route over iap2 hid and move the phone's volume.
-  // the 0-100 value is the app's own estimate for the slider, not the phone.
+  // phone volume is knob-only: relative steps route over iap2 hid and move the
+  // phone's volume. absolute setvolume never reaches the phone on ios.
   const nudgeVolume = useCallback((dir: 1 | -1) => {
     const client = getClient();
     if (dir > 0) client.audio.volumeUp().catch(() => {});
     else client.audio.volumeDown().catch(() => {});
-    setVolume(v => Math.max(0, Math.min(100, v + dir * 5)));
-    setMuted(false);
-  }, []);
-
-  const slideVolume = useCallback((target: number) => {
-    const clamped = Math.max(0, Math.min(100, Math.round(target)));
-    const prev = sliderAt.current ?? clamped;
-    sliderAt.current = clamped;
-    const steps = Math.round((clamped - prev) / 5);
-    const client = getClient();
-    for (let i = 0; i < Math.min(Math.abs(steps), 12); i++) {
-      if (steps > 0) client.audio.volumeUp().catch(() => {});
-      else if (steps < 0) client.audio.volumeDown().catch(() => {});
-    }
-    setVolume(clamped);
-    setMuted(false);
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    getClient().audio.muteToggle().catch(() => {});
-    setMuted(m => !m);
   }, []);
 
   // keyboard shortcuts (from original: space, r, f, +/-)
@@ -502,34 +510,9 @@ export default function App() {
             </div>
           )}
 
-          {/* volume: phone media volume, the stream plays on the phone */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between">
-              <div className="font-mono text-eyebrow uppercase tracking-[0.2em] text-dim">Volume</div>
-              <button
-                onClick={toggleMute}
-                className="font-mono text-hint text-dim"
-                title="Mute"
-              >
-                {muted ? 'Muted' : `${volume}%`}
-              </button>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={muted ? 0 : volume}
-              onChange={e => slideVolume(Number(e.target.value))}
-              className="mt-2 w-full accent-[#00a8e8]"
-            />
-            <div className="mt-1 flex justify-between">
-              <button onClick={() => nudgeVolume(-1)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">−</button>
-              <button onClick={() => nudgeVolume(1)} className="rounded border border-edge px-3 py-1 font-mono text-body text-dim active:bg-neutral-soft">+</button>
-            </div>
-          </div>
-
           <div className="mt-auto pt-4 font-mono text-hint leading-relaxed text-dim">
             1-4 tabs · Space/knob play/pause<br />
+            Knob turn: volume (map: zoom)<br />
             R random · F favorite · Back exits
           </div>
         </aside>

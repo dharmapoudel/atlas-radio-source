@@ -1,5 +1,20 @@
 # Atlas Radio
 
+## 0.4.2
+
+- Removed the on-screen volume slider; volume is knob-only now, with a hint
+  in the footer ("Knob turn: volume (map: zoom)").
+- Countries tab: "United Kingdom" is now "UK" so the grid fits without
+  scrolling, and Spain was replaced with Nepal.
+- Now-playing title no longer shows raw stream metadata: the app strips the
+  `key="value"` junk from ICY titles, so e.g.
+  `Rihanna - text="Only Girl" song_spot="M" ...` shows as "Rihanna - Only Girl".
+- Station lists are cached on the device and refreshed in the background, so
+  tabs open instantly after the first load instead of fetching every time.
+- Fixed "Failed to fetch" on every restart: the first load now retries once
+  after a short delay (the phone gateway proxy is often not up yet at launch),
+  and shows a plain-language error only when there is nothing cached.
+
 ## 0.4.1
 
 - Volume fix: the knob, slider, and mute button now use the phone's relative

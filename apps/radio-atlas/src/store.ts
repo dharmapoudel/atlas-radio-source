@@ -6,7 +6,12 @@ import type { Station } from './types';
 
 const FAVORITES_KEY = 'radio-atlas:favorites';
 const RECENT_KEY = 'radio-atlas:recent';
-const VOLUME_KEY = 'radio-atlas:volume';
+const STATION_CACHE_KEY = 'radio-atlas:station-cache';
+
+export interface CachedStations {
+  data: Station[];
+  at: number;
+}
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -52,11 +57,18 @@ export const store = {
     return store.getRecent();
   },
 
-  getVolume(): number {
-    const v = read<number>(VOLUME_KEY, 70);
-    return typeof v === 'number' && isFinite(v) ? Math.max(0, Math.min(100, Math.round(v))) : 70;
+  getCachedStations(key: string): CachedStations | null {
+    const entry = read<Record<string, CachedStations>>(STATION_CACHE_KEY, {})[key];
+    return entry && Array.isArray(entry.data) ? entry : null;
   },
-  setVolume(v: number): void {
-    write(VOLUME_KEY, Math.max(0, Math.min(100, Math.round(v))));
+  setCachedStations(key: string, data: Station[]): void {
+    const cache = read<Record<string, CachedStations>>(STATION_CACHE_KEY, {});
+    cache[key] = { data: data.slice(0, 200), at: Date.now() };
+    const keys = Object.keys(cache);
+    if (keys.length > 24) {
+      keys.sort((a, b) => cache[a].at - cache[b].at);
+      for (const k of keys.slice(0, keys.length - 24)) delete cache[k];
+    }
+    write(STATION_CACHE_KEY, cache);
   },
 };

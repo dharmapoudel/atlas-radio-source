@@ -143,10 +143,10 @@ export const radioApi = {
 /** Popular country codes for quick browsing (from original plugin usage) */
 export const POPULAR_COUNTRIES: { code: string; name: string }[] = [
   { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
+  { code: 'GB', name: 'UK' },
   { code: 'DE', name: 'Germany' },
   { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
+  { code: 'NP', name: 'Nepal' },
   { code: 'IT', name: 'Italy' },
   { code: 'NL', name: 'Netherlands' },
   { code: 'CA', name: 'Canada' },
