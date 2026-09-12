@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-11T18:14:46.932Z",
+  "updated_at": "2026-09-12T19:48:49.989Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.4.2",
+          "released_at": "2026-09-12T19:48:49.986Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.2.zip",
+            "size": 900411,
+            "sha256": "0beece3e9bfb443d9dbe86619f9f2765d82506656b11afa891bbb65ceab6041f"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Removed the on-screen volume slider; volume is knob-only now, with a hint\n  in the footer (\"Knob turn: volume (map: zoom)\").\n- Countries tab: \"United Kingdom\" is now \"UK\" so the grid fits without\n  scrolling, and Spain was replaced with Nepal.\n- Now-playing title no longer shows raw stream metadata: the app strips the\n  `key=\"value\"` junk from ICY titles, so e.g.\n  `Rihanna - text=\"Only Girl\" song_spot=\"M\" ...` shows as \"Rihanna - Only Girl\".\n- Station lists are cached on the device and refreshed in the background, so\n  tabs open instantly after the first load instead of fetching every time.\n- Fixed \"Failed to fetch\" on every restart: the first load now retries once\n  after a short delay (the phone gateway proxy is often not up yet at launch),\n  and shows a plain-language error only when there is nothing cached."
+        },
         {
           "version": "0.4.1",
           "released_at": "2026-09-11T18:14:46.928Z",
