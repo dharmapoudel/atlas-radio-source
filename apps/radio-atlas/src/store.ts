@@ -3,10 +3,14 @@
 // on Bridgething we use localStorage (per-webapp KV).
 
 import type { Station } from './types';
+import { cleanStationName } from './radioApi';
 
 const FAVORITES_KEY = 'radio-atlas:favorites';
 const RECENT_KEY = 'radio-atlas:recent';
-const STATION_CACHE_KEY = 'radio-atlas:station-cache';
+// v2: station names are cleaned at ingest, so older caches with dirty names
+// are ignored
+const STATION_CACHE_KEY = 'radio-atlas:station-cache:v2';
+const NOW_PLAYING_KEY = 'radio-atlas:now-playing';
 
 export interface CachedStations {
   data: Station[];
@@ -32,8 +36,9 @@ function write(key: string, value: unknown): void {
 }
 
 export const store = {
+  // older entries predate name cleaning; clean on read so they heal
   getFavorites(): Station[] {
-    return read<Station[]>(FAVORITES_KEY, []);
+    return read<Station[]>(FAVORITES_KEY, []).map(s => ({ ...s, name: cleanStationName(s.name) }));
   },
   isFavorite(uuid: string): boolean {
     return store.getFavorites().some(s => s.uuid === uuid);
@@ -48,7 +53,7 @@ export const store = {
   },
 
   getRecent(): Station[] {
-    return read<Station[]>(RECENT_KEY, []);
+    return read<Station[]>(RECENT_KEY, []).map(s => ({ ...s, name: cleanStationName(s.name) }));
   },
   recordPlayed(station: Station): Station[] {
     const recent = store.getRecent().filter(s => s.uuid !== station.uuid);
@@ -70,5 +75,13 @@ export const store = {
       for (const k of keys.slice(0, keys.length - 24)) delete cache[k];
     }
     write(STATION_CACHE_KEY, cache);
+  },
+
+  getNowPlaying(): Station | null {
+    const s = read<Station | null>(NOW_PLAYING_KEY, null);
+    return s ? { ...s, name: cleanStationName(s.name) } : null;
+  },
+  setNowPlaying(s: Station | null): void {
+    write(NOW_PLAYING_KEY, s);
   },
 };

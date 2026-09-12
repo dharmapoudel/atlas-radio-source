@@ -1,5 +1,18 @@
 # Atlas Radio
 
+## 0.4.3
+
+- Station names are cleaned up: directory entries carrying URL and legal junk
+  (e.g. "Hot Tejano (Austin) - Online - www.hotfejano.com - hottejano.com LLC")
+  now show as "Hot Tejano (Austin) - Austin, Texas". Now-playing titles also
+  strip bare URLs. Old favorites, history, and caches heal automatically.
+- Back/Esc no longer stops playback: the stream keeps playing on the phone
+  when you exit to the launcher, and reopening the app restores the session
+  so pause/stop keep working. The ■ button is still the explicit stop.
+- Map is now the first tab (keys 1-5 cover all five tabs).
+- Countries grid is fixed to exactly four rows so it never scrolls.
+- World tab shuffles its station list on every app open.
+
 ## 0.4.2
 
 - Removed the on-screen volume slider; volume is knob-only now, with a hint

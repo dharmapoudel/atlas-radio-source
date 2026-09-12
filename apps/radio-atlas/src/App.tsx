@@ -28,6 +28,8 @@ export function cleanLiveTitle(raw: string | null | undefined, stationName: stri
     const before = t.slice(0, textAttr.index).replace(/[-–—\s]+$/, '').trim();
     t = before ? `${before} - ${textAttr[1]}` : textAttr[1];
   } else {
+    t = t.replace(/https?:\/\/\S+/gi, ' ');
+    t = t.replace(/(^|[\s(])((www\.)?[\w-]+\.(com|net|org|fm|live|radio|stream|online|us|co|io|me|tv))\b/gi, '$1');
     t = t.replace(/(^|\s+)[A-Za-z_][\w-]*=(?:"[^"]*"|'[^']*'|[^\s]+)/g, '').trim();
     t = t.replace(/^[-–—\s]+|[-–—\s]+$/g, '').trim();
   }
@@ -35,8 +37,18 @@ export function cleanLiveTitle(raw: string | null | undefined, stationName: stri
   return t.slice(0, 160);
 }
 
+// fisher-yates shuffle; returns a new array
+function shuffled<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function App() {
-  const [tab, setTab] = useState<TabMode>('world');
+  const [tab, setTab] = useState<TabMode>('map');
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,17 +81,19 @@ export default function App() {
     key: string,
     fetchFresh: () => Promise<Station[]>,
     emptyError: string,
+    shuffle = false,
   ) => {
     const seq = ++loadSeq.current;
     setError(null);
+    const apply = (data: Station[]) => setStations(shuffle ? shuffled(data) : data);
     const cached = store.getCachedStations(key);
     if (cached) {
-      setStations(cached.data);
+      apply(cached.data);
       setLoading(false);
       fetchFresh().then(data => {
         if (loadSeq.current !== seq) return;
         store.setCachedStations(key, data);
-        setStations(data);
+        apply(data);
       }).catch(() => {});
       return;
     }
@@ -96,7 +110,7 @@ export default function App() {
       const data = await attempt();
       if (loadSeq.current !== seq) return;
       store.setCachedStations(key, data);
-      setStations(data);
+      apply(data);
     } catch (e) {
       if (loadSeq.current === seq) setError(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : emptyError);
     } finally {
@@ -104,10 +118,11 @@ export default function App() {
     }
   }, []);
 
-  const loadWorld = useCallback(async () => {
+  const loadWorld = useCallback(async (opts?: { shuffle?: boolean }) => {
     setCountry(null);
     await loadCached('world', () => radioApi.world(100),
-      'Could not reach the station directory. Check your connection.');
+      'Could not reach the station directory. Check your connection.',
+      opts?.shuffle ?? false);
   }, [loadCached]);
 
   const loadCountry = useCallback(async (code: string, name: string) => {
@@ -158,7 +173,7 @@ export default function App() {
   }, [recent, playing]);
 
   useEffect(() => {
-    loadWorld();
+    loadWorld({ shuffle: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -175,6 +190,7 @@ export default function App() {
     setLiveTitle(null);
     setPlaying(station);
     setSelectedUuid(station.uuid);
+    store.setNowPlaying(station);
     client.player.play({ uri: station.url, context: null }).catch(() => {
       setAudioLoading(false);
       setAudioError('Could not reach the daemon. Is the device on?');
@@ -203,14 +219,16 @@ export default function App() {
     setAudioLoading(false);
     setAudioError(null);
     setLiveTitle(null);
+    store.setNowPlaying(null);
   }, []);
 
+  // exiting leaves the stream playing on the phone; the app is a remote, not
+  // the player. the stop button above is the explicit way to silence it.
   const exitApp = useCallback(() => {
-    stop();
     getClient().webapp.activate({ id: HUB_WEBAPP_ID }).then(res => {
       if (!res.ok) console.warn('exit to launcher failed', res.kind, res.error);
     }).catch(() => {});
-  }, [stop]);
+  }, []);
 
   // phone now-playing snapshots and player errors
   useEffect(() => {
@@ -246,13 +264,21 @@ export default function App() {
         setAudioError('Stream failed. Try another station.');
       }
     });
-    // prime from the phone's current state in case it is already playing
+    // prime from the phone's current state in case it is already playing.
+    // if our stream survived an exit, restore it so pause/stop keep working.
     client.player.stateGet().then(res => {
       if (!res.ok) return;
       const st = res.response.state;
       if (st.playback.state === 'playing' || st.playback.state === 'paused') {
         setIsPaused(st.playback.state === 'paused');
         setAudioLoading(false);
+        const np = store.getNowPlaying();
+        if (np) {
+          setPlaying(np);
+          setSelectedUuid(np.uuid);
+        }
+      } else {
+        store.setNowPlaying(null);
       }
     }).catch(() => {});
     return () => { offSnapshot(); offError(); offStreamError(); };
@@ -283,10 +309,11 @@ export default function App() {
       else if (e.key === 'r' || e.key === 'R') tuneRandom();
       else if (e.key === '+' || e.key === '=') nudgeVolume(1);
       else if (e.key === '-' || e.key === '_') nudgeVolume(-1);
-      else if (e.key === '1') switchTab('world');
-      else if (e.key === '2') switchTab('map');
+      else if (e.key === '1') switchTab('map');
+      else if (e.key === '2') switchTab('world');
       else if (e.key === '3') switchTab('country');
       else if (e.key === '4') switchTab('favorites');
+      else if (e.key === '5') switchTab('recent');
       else if (e.key === 'Escape') exitApp();
       else if ((e.key === 'f' || e.key === 'F') && selectedUuid) {
         const s = stations.find(x => x.uuid === selectedUuid);
@@ -365,7 +392,7 @@ export default function App() {
 
       {/* tabs */}
       <nav className="flex h-11 shrink-0 items-center gap-1 border-b border-rule px-4">
-        {(['world', 'map', 'country', 'favorites', 'recent'] as TabMode[]).map(t => (
+        {(['map', 'world', 'country', 'favorites', 'recent'] as TabMode[]).map(t => (
           <button
             key={t}
             onClick={() => switchTab(t)}
@@ -398,14 +425,14 @@ export default function App() {
               onBrowseCountry={(code, name) => loadCountry(code, name)}
             />
           ) : tab === 'country' && !country ? (
-            <div className="grid grid-cols-3 gap-3 p-4">
+            <div className="grid h-full grid-cols-3 grid-rows-4 gap-2 p-3">
               {POPULAR_COUNTRIES.map(c => (
                 <button
                   key={c.code}
                   onClick={() => loadCountry(c.code, c.name)}
-                  className="rounded border border-edge bg-screen p-4 text-left active:bg-neutral-soft"
+                  className="rounded border border-edge bg-screen p-3 text-left active:bg-neutral-soft"
                 >
-                  <div className="font-display text-title font-medium">{c.name}</div>
+                  <div className="truncate font-display text-row font-medium">{c.name}</div>
                   <div className="font-mono text-hint text-dim">{c.code}</div>
                 </button>
               ))}
@@ -511,9 +538,9 @@ export default function App() {
           )}
 
           <div className="mt-auto pt-4 font-mono text-hint leading-relaxed text-dim">
-            1-4 tabs · Space/knob play/pause<br />
+            1-5 tabs · Space/knob play/pause<br />
             Knob turn: volume (map: zoom)<br />
-            R random · F favorite · Back exits
+            R random · F favorite · Back exits (keeps playing)
           </div>
         </aside>
       </div>

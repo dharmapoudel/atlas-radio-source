@@ -6,6 +6,26 @@ import type { Station } from './types';
 
 const USER_AGENT = 'RadioAtlas-Bridgething/0.1.0 (https://github.com/JoeyEamigh/bridgething)';
 
+// directory names often carry url and legal junk, e.g.
+// "hot tejano (austin) - online - www.hotfejano.com - hottejano.com llc - austin, texas"
+export function cleanStationName(raw: string | undefined | null): string {
+  let t = String(raw || '').replace(/[\r\n\t]+/g, ' ').trim();
+  t = t.replace(/https?:\/\/\S+/gi, ' ');
+  t = t.replace(/(^|[\s(])((www\.)?[\w-]+\.(com|net|org|fm|live|radio|stream|online|us|co|io|me|tv))\b/gi, '$1');
+  const junk = /^(llc|inc|corp|ltd|gmbh|online|listen live|official site|official)$/i;
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const part of t.split(/\s*[-–—|/]\s*/)) {
+    const p = part.replace(/\s{2,}/g, ' ').trim();
+    if (!p || junk.test(p)) continue;
+    const k = p.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    kept.push(p);
+  }
+  return (kept.join(' - ') || t.trim() || 'Unknown station').slice(0, 160);
+}
+
 // Radio Browser requires DNS-based server discovery, but for the Car Thing
 // we use the fixed mirror which is proxied via the phone gateway's net.proxy.
 const API_BASE = 'https://all.api.radio-browser.info';
@@ -45,7 +65,7 @@ function normalize(raw: RawStation[]): Station[] {
 
     out.push({
       uuid,
-      name: String(s.name || 'Unknown station').replace(/[\r\n\t]+/g, ' ').slice(0, 160) || 'Unknown station',
+      name: cleanStationName(s.name),
       url,
       homepage: String(s.homepage || '').slice(0, 2048),
       favicon: String(s.favicon || '').slice(0, 2048),
