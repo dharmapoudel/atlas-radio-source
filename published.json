@@ -1,56 +1,8 @@
 {
   "01a08604-de6f-7a9f-a11e-1b4233458b2a": {
-    "0.3.3": {
-      "released_at": "2026-09-10T00:16:00.261Z",
-      "sha256": "c303593482e9d791c07fae25868360f22c56651d2b9029fabc91d0a24641e74c",
-      "size": 849757,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.3.3.zip"
-    },
-    "0.4.0": {
-      "released_at": "2026-09-11T17:23:24.246Z",
-      "sha256": "1d619a59e4c76f5538d32741f26d222b16d3fccee5e1774e7651469c360038cd",
-      "size": 901831,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.0.zip"
-    },
-    "0.4.1": {
-      "released_at": "2026-09-11T18:14:46.928Z",
-      "sha256": "78a4d185c6392a2f6d5dc7d0b638985124b4e9236adafbcb62b9ae9921f8f236",
-      "size": 899954,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.1.zip"
-    },
-    "0.4.2": {
-      "released_at": "2026-09-12T19:48:49.986Z",
-      "sha256": "0beece3e9bfb443d9dbe86619f9f2765d82506656b11afa891bbb65ceab6041f",
-      "size": 900411,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.2.zip"
-    },
-    "0.4.3": {
-      "released_at": "2026-09-12T20:13:56.371Z",
-      "sha256": "6a9088b810ff7d7e25422eb40285f0faae234610611e22547e317c33afab9a13",
-      "size": 902375,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.3.zip"
-    },
-    "0.4.4": {
-      "released_at": "2026-09-12T20:34:45.793Z",
-      "sha256": "c14229e026e8e12845fc785794113e3b342ee261da856049685336ea9de317d7",
-      "size": 904611,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.4.zip"
-    },
-    "0.4.5": {
-      "released_at": "2026-09-12T20:49:15.098Z",
-      "sha256": "cdc298b6bde115b6caa5cba052ec7e2ef2792b06a76be93b49b5056df288f8c2",
-      "size": 903173,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.5.zip"
-    },
-    "0.4.6": {
-      "released_at": "2026-09-12T21:09:04.173Z",
-      "sha256": "d5022a049f5a42ed9ee9e802cbf3981dcd5b6176d7e64569af4f986b830ae35a",
-      "size": 907858,
-      "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.6.zip"
-    },
     "0.4.7": {
-      "released_at": "2026-09-13T02:45:54.098Z",
-      "sha256": "b1b0d8cebd35007d66e98ef7f04a2d1c7fdab949ea33b7afd138cdc3df163c09",
+      "released_at": "2026-09-13T02:45:43.093Z",
+      "sha256": "54ffd66c68409fdc9a6dbb64506bdbeaa3421a7125c742eb2819fc240269871c",
       "size": 909954,
       "file": "r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.4.7.zip"
     }
