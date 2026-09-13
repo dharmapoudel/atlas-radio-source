@@ -1,5 +1,9 @@
 # Atlas Radio
 
+## 0.4.7
+
+- Bolder icon: the radio body outline is thicker (same Sonos sky blue).
+
 ## 0.4.6
 
 - Polished the icon: the radio artwork is larger in the frame and the blue
