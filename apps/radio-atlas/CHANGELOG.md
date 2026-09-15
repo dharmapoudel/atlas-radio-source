@@ -1,5 +1,50 @@
 # Atlas Radio
 
+## 0.5.0
+
+- Map tab: the knob now zooms the map by default. Once you tap a station dot
+  and it starts playing, the knob controls the volume instead; tapping the map
+  switches it back to zoom.
+- Map tab: zooming in reveals more station dots, up to 500 worldwide.
+- Fixed: leaving the Map tab (e.g. tapping a country) and coming back no
+  longer shrinks the station pool, so the extra dots from zooming stay.
+- Fixed: the map no longer jumps back to its default position when you return
+  to the Map tab; panning now persists across tab switches like zoom does.
+- Fixed: closing and reopening the app while a station plays now restores the
+  now-playing station. The companion's stream provider drops the play context,
+  so the phone reports no context uri; the app now matches the playing track's
+  uri against the saved station's stream url instead (foreign streams are
+  still never claimed). A restored session keeps the knob on its default
+  (zoom); volume mode is entered by tapping a station dot.
+- Added: starting a station now zooms the map onto that station's country with
+  the station at the center (zoom fits the country, 1x-4x). Stations without
+  coordinates fall back to the country view from the bundled map geometry,
+  so playing from any country's list still focuses the map when its tab is
+  opened. A relaunch restore deliberately leaves the saved map view alone.
+- UI: decluttered the help texts. The map hint is now a single contextual line
+  (the signal count moved out — the top bar already shows it), and the aside
+  shortcuts are four short lines: tabs/random/favorite, play/pause, exit,
+  knob state. No more duplicated knob info between the two.
+- Fixed: the now-playing button row moved further down (mt-12) so the favorite
+  button clears the Car Thing's physical knob overhang.
+- Help texts shrank to eyebrow size so "1-5 tabs · R random · F favorite" fits
+  on one row.
+- Map dots are smaller (r 2.5) and muted slate instead of shiny white; the
+  playing dot keeps its accent fill, pulse, and halo ring.
+- Opening the map tab (or launching the app) with a station playing now
+  centers the map on its halo dot; the playing dot is also pinned into the
+  dot pool so it never disappears at low zoom.
+- Play/pause button uses proper SVG icons instead of text glyphs.
+- Animations slimmed down for the weak device CPU: rows and country cards no
+  longer stagger one-by-one, all map dots share a single fade, and the
+  playing halo pulses via CSS instead of SMIL.
+- Recent tab has a "Clear recent history" row at the end of the list.
+- Glow-up: gradient app background, gradient primary buttons with a soft glow,
+  filled pill tabs, softer inputs, hover states on rows/cards, brighter map
+  countries and dots, a halo ring on the playing dot, a live status dot next
+  to the wordmark (pulses while playing), styled scrollbars, and Inter for UI
+  chrome (mono reserved for metadata). No new functionality.
+
 ## 0.4.7
 
 - Bolder icon: the radio body outline is thicker (same Sonos sky blue).

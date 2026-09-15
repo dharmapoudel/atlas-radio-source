@@ -64,6 +64,12 @@
   --animate-fade-up: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fade-in 0.3s ease-out both;
   --animate-pulse-dot: pulse-dot 2s ease-in-out infinite;
+  --animate-halo-pulse: halo-pulse 2.4s ease-in-out infinite;
+
+  @keyframes halo-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.15; }
+  }
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(8px); }
@@ -96,5 +102,28 @@
     margin: 0;
     overflow: hidden;
     overscroll-behavior: none;
+  }
+
+  body {
+    background: linear-gradient(180deg, #0d1526 0%, #080d17 55%, #05080e 100%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.14);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(255 255 255 / 0.24);
+  }
+
+  ::selection {
+    background: rgb(0 168 232 / 0.35);
   }
 }

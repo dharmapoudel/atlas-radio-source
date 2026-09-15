@@ -32,11 +32,11 @@ Ported from the [Omarchy Radio Atlas plugin](https://github.com/AksharP5/omarchy
 
 ## Screenshots
 
-Real device photos from a Car Thing install:
+App UI at Car Thing resolution (800×480):
 
-| World tab | Map tab | Countries tab (playing) |
+| World tab | Map tab | Countries tab |
 |---|---|---|
-| ![World tab](screenshots/world-tab.jpg) | ![Map tab](screenshots/map-tab.jpg) | ![Countries tab](screenshots/countries-tab.jpg) |
+| ![World tab](screenshots/01.png) | ![Map tab](screenshots/02.png) | ![Countries tab](screenshots/03.png) |
 
 ## Known limitation: audio output
 

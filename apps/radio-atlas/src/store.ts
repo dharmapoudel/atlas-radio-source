@@ -61,14 +61,18 @@ export const store = {
     write(RECENT_KEY, recent.slice(0, 100));
     return store.getRecent();
   },
+  clearRecent(): Station[] {
+    write(RECENT_KEY, []);
+    return [];
+  },
 
   getCachedStations(key: string): CachedStations | null {
     const entry = read<Record<string, CachedStations>>(STATION_CACHE_KEY, {})[key];
     return entry && Array.isArray(entry.data) ? entry : null;
   },
-  setCachedStations(key: string, data: Station[]): void {
+  setCachedStations(key: string, data: Station[], limit = 200): void {
     const cache = read<Record<string, CachedStations>>(STATION_CACHE_KEY, {});
-    cache[key] = { data: data.slice(0, 200), at: Date.now() };
+    cache[key] = { data: data.slice(0, limit), at: Date.now() };
     const keys = Object.keys(cache);
     if (keys.length > 24) {
       keys.sort((a, b) => cache[a].at - cache[b].at);

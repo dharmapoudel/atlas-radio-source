@@ -4,6 +4,7 @@ import { store } from './store';
 import { getClient } from './client';
 import type { Station, TabMode } from './types';
 import WorldMap from './WorldMap';
+import { project, MAP_VIEW, countryFocus } from './mapFocus';
 
 // Built-in launcher (hub) webapp id. The client SDK cannot list the launcher,
 // so exiting goes through this well-known builtin id.
@@ -54,9 +55,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [mapZoom, setMapZoom] = useState(1);
+  const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
   const [country, setCountry] = useState<{ code: string; name: string } | null>(null);
 
   const [playing, setPlaying] = useState<Station | null>(null);
+  const playingRef = useRef<Station | null>(null);
+  playingRef.current = playing;
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -67,10 +71,15 @@ export default function App() {
   // guards against a single knob press arriving as two key events, which
   // would pause then instantly resume
   const lastToggleAt = useRef(0);
-  // map zoom persists across tab switches; the knob only zooms after an
-  // explicit tap on the map, otherwise it stays on volume
-  const [mapEngaged, setMapEngaged] = useState(false);
-  const mapWrapRef = useRef<HTMLDivElement | null>(null);
+  // on the map tab the knob zooms by default; tapping a station dot hands it
+  // to volume while the stream plays, tapping the map takes it back
+  const [mapKnobZoom, setMapKnobZoom] = useState(true);
+  // the map's own station pool, denser than the world list so zooming in
+  // can reveal more dots
+  const [mapStations, setMapStations] = useState<Station[]>([]);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const mapPoolFresh = useRef(false);
   // true only while this app owns the phone's current playback: set when the
   // user starts a station here, or when the phone confirms a restored session
   // is ours via the playback context uri. the knob never drives the phone
@@ -91,6 +100,7 @@ export default function App() {
     setAudioError(null);
     setIsPaused(paused);
     ownsPlayback.current = false;
+    setMapKnobZoom(true);
     store.setNowPlaying(null);
     const t = (trackTitle ?? '').trim();
     setExternalTitle(t ? t : 'something');
@@ -153,6 +163,31 @@ export default function App() {
       opts?.shuffle ?? false);
   }, [loadCached]);
 
+  // top 500 geo stations by clicks, clickcount order so zooming in reveals
+  // progressively less popular dots. cached with a 500-entry cap so coming
+  // back to the tab restores the full pool instead of a truncated one.
+  const loadMapStations = useCallback(async () => {
+    const cached = store.getCachedStations('world-map');
+    if (cached) {
+      setMapStations(cached.data);
+      setMapLoading(false);
+    } else {
+      setMapLoading(true);
+    }
+    setMapError(null);
+    if (mapPoolFresh.current) return;
+    mapPoolFresh.current = true;
+    try {
+      const data = await radioApi.world(500);
+      store.setCachedStations('world-map', data, 500);
+      setMapStations(data);
+    } catch (e) {
+      if (!cached) setMapError(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'Could not reach the station directory. Check your connection.');
+    } finally {
+      setMapLoading(false);
+    }
+  }, []);
+
   const loadCountry = useCallback(async (code: string, name: string) => {
     setTab('country');
     setCountry({ code, name });
@@ -202,6 +237,7 @@ export default function App() {
 
   useEffect(() => {
     loadWorld({ shuffle: true });
+    loadMapStations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -209,6 +245,25 @@ export default function App() {
   // The Car Thing has no speaker, so streams play on the phone through the
   // companion's stream provider (claims http/https). Now-playing state and
   // errors arrive back over client.player events.
+
+  // center the map on a station: its coordinates when known, otherwise the
+  // country view. the map tab recenters on the playing station every time it
+  // opens so the halo dot lands in the middle of the screen.
+  const focusStation = useCallback((station: Station) => {
+    const { latitude: lat, longitude: lon } = station;
+    const geo: [number, number] | null =
+      lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)
+        ? project(lon, lat)
+        : null;
+    const focus = countryFocus(station.countryCode);
+    const target = geo
+      ? { x: geo[0], y: geo[1], zoom: focus ? focus.zoom : 3 }
+      : focus;
+    if (!target) return;
+    const z = target.zoom;
+    setMapZoom(z);
+    setMapPan({ x: z * (MAP_VIEW.w / 2 - target.x), y: z * (MAP_VIEW.h / 2 - target.y) });
+  }, []);
 
   const playStation = useCallback((station: Station) => {
     const client = getClient();
@@ -218,6 +273,8 @@ export default function App() {
     setLiveTitle(null);
     setPlaying(station);
     setSelectedUuid(station.uuid);
+    setMapKnobZoom(false);
+    focusStation(station);
     store.setNowPlaying(station);
     setExternalTitle(null);
     ownsPlayback.current = true;
@@ -227,7 +284,7 @@ export default function App() {
     });
     radioApi.click(station.uuid);
     setRecent(store.recordPlayed(station));
-  }, []);
+  }, [focusStation]);
 
   const togglePlayPause = useCallback(() => {
     const now = Date.now();
@@ -251,6 +308,7 @@ export default function App() {
     setAudioLoading(false);
     setAudioError(null);
     setLiveTitle(null);
+    setMapKnobZoom(true);
     store.setNowPlaying(null);
     ownsPlayback.current = false;
   }, []);
@@ -285,6 +343,7 @@ export default function App() {
         setLiveTitle(t => cleanLiveTitle(title, playing?.name ?? '') ?? t);
       } else if (state === 'stopped') {
         setAudioLoading(false);
+        setMapKnobZoom(true);
       }
     });
     const offError = client.player.onErrorReply(reply => {
@@ -307,9 +366,11 @@ export default function App() {
       }
     });
     // prime from the phone's current state in case it is already playing.
-    // a previous session is only restored when the phone confirms the
-    // stream is ours via the playback context uri; otherwise the knob
-    // must not touch the phone's playback (e.g. spotify).
+    // a previous session is only restored when the phone confirms the stream
+    // is ours: via the playback context uri, or (the companion's stream
+    // provider drops the play context) by matching the playing track's uri
+    // against the persisted station's stream url. otherwise the knob must
+    // not touch the phone's playback (e.g. spotify).
     client.player.stateGet().then(res => {
       if (!res.ok) return;
       const st = res.response.state;
@@ -319,19 +380,25 @@ export default function App() {
         noteExternalPlayback(st.track?.title, st.playback.state === 'paused');
         return;
       }
-      const ours = (st.playback.state === 'playing' || st.playback.state === 'paused') &&
-        !!ctxUri && ctxUri.startsWith(CONTEXT_PREFIX);
-      if (ours) {
+      const active = st.playback.state === 'playing' || st.playback.state === 'paused';
+      const np = store.getNowPlaying();
+      // a restored session shows the station and centers the map on it, but
+      // the knob stays on its default (zoom): volume mode is entered by
+      // tapping a station dot.
+      const restore = (station: Station) => {
+        setPlaying(station);
+        setSelectedUuid(station.uuid);
         setIsPaused(st.playback.state === 'paused');
         setAudioLoading(false);
-        const uuid = (ctxUri as string).slice(CONTEXT_PREFIX.length);
-        const np = store.getNowPlaying();
-        if (np && np.uuid === uuid) {
-          setPlaying(np);
-          setSelectedUuid(np.uuid);
-          ownsPlayback.current = true;
-        }
-      } else if (st.playback.state !== 'playing' && st.playback.state !== 'paused') {
+        ownsPlayback.current = true;
+        focusStation(station);
+      };
+      if (active && !!ctxUri && ctxUri.startsWith(CONTEXT_PREFIX)) {
+        const uuid = ctxUri.slice(CONTEXT_PREFIX.length);
+        if (np && np.uuid === uuid) restore(np);
+      } else if (active && np && !!st.track?.uri && st.track.uri === np.url) {
+        restore(np);
+      } else if (!active) {
         store.setNowPlaying(null);
       }
     }).catch(() => {});
@@ -375,12 +442,13 @@ export default function App() {
       }
     };
     // rotary wheel: horizontal deltaX adjusts volume (Car Thing wheel);
-    // on the map tab it zooms only after an explicit tap on the map
+    // on the map tab it zooms while the knob is in zoom mode, which is the
+    // default until a station dot hands it to volume
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();
         const dir = e.deltaX > 0 ? 1 : -1;
-        if (tab === 'map' && mapEngaged) {
+        if (tab === 'map' && mapKnobZoom) {
           setMapZoom(z => Math.max(1, Math.min(4, z + dir * 0.25)));
         } else {
           nudgeVolume(dir);
@@ -393,7 +461,7 @@ export default function App() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('wheel', onWheel);
     };
-  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, mapEngaged, nudgeVolume]);
+  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, mapKnobZoom, nudgeVolume]);
 
   const visibleStations = useMemo(() => {
     if (tab === 'favorites') return favorites;
@@ -406,29 +474,33 @@ export default function App() {
   const switchTab = (t: TabMode) => {
     setTab(t);
     setError(null);
-    setMapEngaged(false);
-    if (t === 'world' || t === 'map') loadWorld();
+    setMapKnobZoom(true);
+    if (t === 'map') {
+      const p = playingRef.current;
+      if (p) focusStation(p);
+    }
+    if (t === 'world') loadWorld();
+    if (t === 'map') loadMapStations();
     if (t === 'country') { setCountry(null); setStations([]); }
   };
 
-  // tapping anywhere outside the map hands the knob back to volume
-  useEffect(() => {
-    if (!mapEngaged) return;
-    const onDown = (e: PointerEvent) => {
-      if (mapWrapRef.current && !mapWrapRef.current.contains(e.target as Node)) {
-        setMapEngaged(false);
-      }
-    };
-    window.addEventListener('pointerdown', onDown);
-    return () => window.removeEventListener('pointerdown', onDown);
-  }, [mapEngaged]);
-
   return (
-    <div className="relative flex h-full w-full flex-col bg-bg text-off-white">
+    <div className="relative flex h-full w-full flex-col text-off-white">
 
       {/* header */}
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule px-4">
-        <div className="font-display text-xl font-bold tracking-display">RADIO ATLAS</div>
+      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule bg-white/[0.02] px-4">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
+              playing
+                ? isPaused
+                  ? 'bg-accent'
+                  : 'bg-accent animate-pulse-dot shadow-[0_0_10px_var(--color-accent)]'
+                : 'bg-white/15'
+            }`}
+          />
+          <div className="font-display text-xl font-bold tracking-display">RADIO ATLAS</div>
+        </div>
         <form
           className="flex flex-1 items-center gap-2"
           onSubmit={e => { e.preventDefault(); runSearch(query); }}
@@ -438,11 +510,11 @@ export default function App() {
             onChange={e => setQuery(e.target.value)}
             placeholder="Search station, country, genre…"
             maxLength={128}
-            className="h-10 flex-1 rounded border border-edge bg-screen px-3 text-body text-near placeholder:text-dim focus:border-accent focus:outline-none"
+            className="h-10 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-body text-near placeholder:text-dim transition-colors focus:border-accent/60 focus:bg-white/[0.06] focus:outline-none"
           />
           <button
             type="submit"
-            className="h-10 rounded border border-edge px-4 font-mono text-body text-near transition-transform active:scale-95 active:bg-neutral-soft"
+            className="h-10 rounded-lg border border-white/10 bg-white/[0.05] px-4 font-body text-body font-medium text-near transition-all hover:bg-white/[0.1] active:scale-95"
           >
             Search
           </button>
@@ -450,7 +522,7 @@ export default function App() {
         <button
           onClick={tuneRandom}
           title="Tune randomly (R)"
-          className="h-10 rounded border border-accent bg-accent px-4 font-mono text-body text-screen transition-transform active:scale-95 active:opacity-80"
+          className="h-10 rounded-lg bg-gradient-to-b from-[#2fb9f2] to-[#0090d6] px-4 font-body text-body font-semibold text-screen shadow-[0_2px_14px_rgba(0,168,232,0.35)] transition-all hover:brightness-110 active:scale-95"
         >
           Random
         </button>
@@ -462,8 +534,10 @@ export default function App() {
           <button
             key={t}
             onClick={() => switchTab(t)}
-            className={`rounded px-4 py-1.5 font-mono text-body capitalize transition-transform active:scale-95 ${
-              tab === t ? 'bg-accent-soft text-accent' : 'text-dim active:bg-neutral-soft'
+            className={`rounded-full px-4 py-1.5 font-body text-body font-medium capitalize transition-all active:scale-95 ${
+              tab === t
+                ? 'bg-accent text-screen shadow-[0_2px_10px_rgba(0,168,232,0.35)]'
+                : 'text-dim hover:bg-white/[0.06] hover:text-near'
             }`}
           >
             {t === 'country' ? 'Countries' : t}
@@ -482,29 +556,31 @@ export default function App() {
         {/* station list / country grid / map */}
         <main key={tab} className="min-w-0 flex-1 overflow-y-auto animate-fade-in">
           {tab === 'map' ? (
-            <div ref={mapWrapRef} className="h-full w-full">
+            <div className="h-full w-full">
               <WorldMap
-                stations={stations}
+                stations={mapStations}
+                pinStation={playing}
                 playingUuid={playing?.uuid ?? null}
                 isPaused={isPaused}
                 zoom={mapZoom}
-                engaged={mapEngaged}
-                loading={loading}
-                error={error}
-                onEngage={() => setMapEngaged(true)}
-                onRetry={() => loadWorld()}
+                pan={mapPan}
+                onPanChange={setMapPan}
+                knobZoom={mapKnobZoom}
+                loading={mapLoading}
+                error={mapError}
+                onMapClick={() => setMapKnobZoom(true)}
+                onRetry={loadMapStations}
                 onPlayStation={playStation}
                 onBrowseCountry={(code, name) => loadCountry(code, name)}
               />
             </div>
           ) : tab === 'country' && !country ? (
-            <div className="grid h-full grid-cols-3 grid-rows-4 gap-2 p-3">
-              {POPULAR_COUNTRIES.map((c, i) => (
+            <div className="grid h-full grid-cols-3 grid-rows-4 gap-2 p-3 animate-fade-up">
+              {POPULAR_COUNTRIES.map((c) => (
                 <button
                   key={c.code}
                   onClick={() => loadCountry(c.code, c.name)}
-                  className="rounded border border-edge bg-screen p-3 text-left animate-fade-up active:bg-neutral-soft"
-                  style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+                  className="rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-3 text-left transition-colors hover:border-accent/40 active:bg-neutral-soft"
                 >
                   <div className="truncate font-display text-row font-medium">{c.name}</div>
                   <div className="font-mono text-hint text-dim">{c.code}</div>
@@ -521,7 +597,7 @@ export default function App() {
                 <div className="font-mono text-body text-warn">{error}</div>
                 <button
                   onClick={() => (tab === 'country' && country ? loadCountry(country.code, country.name) : loadWorld())}
-                  className="mt-4 rounded border border-edge px-4 py-2 font-mono text-body text-near active:bg-neutral-soft"
+                  className="mt-4 rounded-lg border border-white/10 bg-white/[0.05] px-4 py-2 font-body text-body font-medium text-near transition-all hover:bg-white/[0.1] active:scale-95"
                 >
                   Retry
                 </button>
@@ -536,14 +612,15 @@ export default function App() {
                   : 'No stations found.'}
             </div>
           ) : (
-            <ul className="divide-y divide-rule">
-              {visibleStations.map((s, i) => {
+            <>
+              <ul className="divide-y divide-rule">
+              {visibleStations.map((s) => {
                 const isPlaying = playing?.uuid === s.uuid;
                 const isFav = favUuids.has(s.uuid);
                 return (
-                  <li key={s.uuid} className="animate-fade-up" style={{ animationDelay: `${Math.min(i * 20, 240)}ms` }}>
+                  <li key={s.uuid}>
                     <div
-                      className={`flex items-center gap-3 px-4 py-2.5 ${isPlaying ? 'bg-accent-soft' : ''} ${selectedUuid === s.uuid ? 'bg-neutral-soft' : ''}`}
+                      className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.03] ${isPlaying ? 'bg-accent-soft shadow-[inset_2px_0_0_0_var(--color-accent)]' : ''} ${selectedUuid === s.uuid ? 'bg-neutral-soft' : ''}`}
                     >
                       <button
                         className="min-w-0 flex-1 text-left"
@@ -565,12 +642,21 @@ export default function App() {
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+              {tab === 'recent' && visibleStations.length > 0 && (
+                <button
+                  onClick={() => setRecent(store.clearRecent())}
+                  className="block w-full border-t border-rule px-4 py-3 text-center font-mono text-hint text-dim transition-colors hover:text-err active:bg-neutral-soft"
+                >
+                  Clear recent history
+                </button>
+              )}
+            </>
           )}
         </main>
 
         {/* now playing */}
-        <aside className="flex w-64 shrink-0 flex-col border-l border-rule bg-screen p-4">
+        <aside className="flex w-64 shrink-0 flex-col border-l border-rule bg-screen px-3 py-4">
           <div className="font-mono text-eyebrow uppercase tracking-[0.2em] text-dim">Now playing</div>
           {playing ? (
             <>
@@ -584,22 +670,37 @@ export default function App() {
               {audioError && (
                 <div className="mt-2 font-mono text-hint text-warn">{audioError}</div>
               )}
-              <div className="mt-4 flex gap-2">
+              <div className="mt-12 flex gap-2">
                 <button
                   onClick={togglePlayPause}
-                  className="flex-1 rounded border border-accent bg-accent px-3 py-2.5 font-mono text-row text-screen transition-transform active:scale-95 active:opacity-80"
+                  className="flex-1 rounded-lg bg-gradient-to-b from-[#2fb9f2] to-[#0090d6] px-3 py-2.5 font-body text-row font-semibold text-screen shadow-[0_2px_14px_rgba(0,168,232,0.35)] transition-all hover:brightness-110 active:scale-95"
                 >
-                  {audioLoading ? '…' : isPaused ? '▶ Play' : '❚❚ Pause'}
+                  {audioLoading ? '…' : isPaused ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M4 2.3v11.4c0 .8.9 1.3 1.6.9l8.7-5.7c.6-.4.6-1.4 0-1.8L5.6 1.4c-.7-.4-1.6.1-1.6.9z" />
+                      </svg>
+                      Play
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <rect x="3" y="2" width="4" height="12" rx="1.2" />
+                        <rect x="9" y="2" width="4" height="12" rx="1.2" />
+                      </svg>
+                      Pause
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={stop}
-                  className="rounded border border-edge px-3 py-2.5 font-mono text-row text-near transition-transform active:scale-95 active:bg-neutral-soft"
+                  className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2.5 font-body text-row text-near transition-all hover:bg-white/[0.1] active:scale-95"
                 >
                   ■
                 </button>
                 <button
                   onClick={() => toggleFavorite(playing)}
-                  className={`rounded border border-edge px-3 py-2.5 font-mono text-row transition-transform active:scale-95 active:bg-neutral-soft ${favUuids.has(playing.uuid) ? 'text-accent' : 'text-dim'}`}
+                  className={`rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2.5 font-body text-row transition-all hover:bg-white/[0.1] active:scale-95 ${favUuids.has(playing.uuid) ? 'text-accent' : 'text-dim'}`}
                 >
                   {favUuids.has(playing.uuid) ? '★' : '☆'}
                 </button>
@@ -617,10 +718,11 @@ export default function App() {
             </div>
           )}
 
-          <div className="mt-auto pt-4 font-mono text-hint leading-relaxed text-dim">
-            1-5 tabs · Space/knob play/pause<br />
-            {tab === 'map' && mapEngaged ? 'Knob: zoom map · tap outside for volume' : 'Knob: volume · tap map to zoom'}<br />
-            R random · F favorite · Back exits (keeps playing)
+          <div className="mt-auto pt-4 font-mono text-[10px] leading-relaxed text-dim">
+            1-5 tabs · R random · F favorite<br />
+            Space / knob press: play/pause<br />
+            Back: exits (keeps playing)<br />
+            {tab === 'map' ? (mapKnobZoom ? 'Knob: zoom map' : 'Knob: volume') : 'Knob: volume'}
           </div>
         </aside>
       </div>

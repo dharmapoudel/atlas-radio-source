@@ -3,8 +3,9 @@
 // (derived from the Omarchy plugin's assets/countries.json, public domain).
 // Station dots are tappable; tapping a country browses its stations.
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import world from './world.json';
+import { project, MAP_VIEW } from './mapFocus';
 import type { Station } from './types';
 
 interface CountryGeom {
@@ -15,12 +16,8 @@ interface CountryGeom {
 
 const COUNTRIES = world as CountryGeom[];
 
-const W = 800;
-const H = 400;
-
-function project(lon: number, lat: number): [number, number] {
-  return [((lon + 180) / 360) * W, ((90 - lat) / 180) * H];
-}
+const W = MAP_VIEW.w;
+const H = MAP_VIEW.h;
 
 function countryPath(polys: number[][][]): string {
   return polys
@@ -33,36 +30,47 @@ function countryPath(polys: number[][][]): string {
 
 interface Props {
   stations: Station[];
+  pinStation: Station | null;
   playingUuid: string | null;
   isPaused: boolean;
   zoom: number;
-  engaged: boolean;
+  pan: { x: number; y: number };
+  onPanChange: (p: { x: number; y: number }) => void;
+  knobZoom: boolean;
   loading: boolean;
   error: string | null;
-  onEngage: () => void;
+  onMapClick: () => void;
   onRetry: () => void;
   onPlayStation: (s: Station) => void;
   onBrowseCountry: (code: string, name: string) => void;
 }
 
-export default function WorldMap({ stations, playingUuid, isPaused, zoom, engaged, loading, error, onEngage, onRetry, onPlayStation, onBrowseCountry }: Props) {
+export default function WorldMap({ stations, pinStation, playingUuid, isPaused, zoom, pan, onPanChange, knobZoom, loading, error, onMapClick, onRetry, onPlayStation, onBrowseCountry }: Props) {
   const paths = useMemo(
     () => COUNTRIES.map(c => ({ c: c.c, n: c.n, d: countryPath(c.p) })),
     []
   );
 
-  const dots = useMemo(
-    () => stations.filter(s => s.latitude != null && s.longitude != null),
-    [stations]
-  );
+  // stations arrive clickcount-ordered; higher zoom reveals more of them.
+  // the pinned (playing) station always renders so its halo never vanishes.
+  const dots = useMemo(() => {
+    const geo = stations.filter(s => s.latitude != null && s.longitude != null);
+    const sliced = geo.slice(0, Math.min(geo.length, Math.round(120 * zoom)));
+    if (
+      pinStation &&
+      pinStation.latitude != null && pinStation.longitude != null &&
+      !sliced.some(s => s.uuid === pinStation.uuid)
+    ) {
+      sliced.unshift(pinStation);
+    }
+    return sliced;
+  }, [stations, zoom, pinStation]);
 
-  // drag-to-pan (pointer events on the svg)
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  // drag-to-pan (pointer events on the svg); pan lives in App so it survives tab switches
   const drag = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
   const dragged = useRef(false);
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    onEngage();
     dragged.current = false;
     drag.current = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
@@ -76,12 +84,11 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, engage
     if (Math.abs(dx) + Math.abs(dy) > 8) dragged.current = true;
     const limX = (W / 2) * zoom;
     const limY = (H / 2) * zoom;
-    setPan({
+    onPanChange({
       x: Math.max(-limX, Math.min(limX, d.px + dx)),
       y: Math.max(-limY, Math.min(limY, d.py + dy)),
     });
   };
-
   const endDrag = () => { drag.current = null; };
 
   // taps that end a drag must not trigger station/country clicks
@@ -102,6 +109,7 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, engage
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onClick={() => { if (tapGuard()) return; onMapClick(); }}
       >
         <g transform={`translate(${W / 2 + pan.x} ${H / 2 + pan.y}) scale(${zoom}) translate(${-W / 2} ${-H / 2})`}>
         {/* graticule */}
@@ -119,39 +127,49 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, engage
           <path
             key={c || n}
             d={d}
-            className="fill-[#283039] stroke-[#7d8791]"
+            className="fill-[#2a3648] stroke-[#93a3b8]"
             strokeWidth={0.6}
             onClick={() => { if (tapGuard()) return; if (/^[A-Z]{2}$/.test(c)) onBrowseCountry(c, n); }}
             style={{ cursor: /^[A-Z]{2}$/.test(c) ? 'pointer' : 'default' }}
           />
         ))}
 
-        {/* station signals */}
-        {dots.map((s, i) => {
+        {/* station signals: one shared fade instead of hundreds of staggered
+            ones, which stuttered on the device */}
+        <g className="animate-fade-in">
+        {dots.map((s) => {
           const [x, y] = project(s.longitude as number, s.latitude as number);
           const isPlaying = playingUuid === s.uuid;
           return (
             <g
               key={s.uuid}
-              onClick={() => { if (tapGuard()) return; onPlayStation(s); }}
-              style={{ cursor: 'pointer', animationDelay: `${Math.min(i * 8, 400)}ms` }}
-              className="animate-fade-in"
+              onClick={(e) => { e.stopPropagation(); if (tapGuard()) return; onPlayStation(s); }}
+              style={{ cursor: 'pointer' }}
+              className="station-dot"
               >
               <circle cx={x} cy={y} r={10} fill="transparent" />
+              {isPlaying && (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={11}
+                  fill="none"
+                  className="stroke-accent animate-halo-pulse"
+                  strokeWidth={1.5}
+                  style={{ animationPlayState: isPaused ? 'paused' : 'running' }}
+                />
+              )}
               <circle
                 cx={x}
                 cy={y}
-                r={isPlaying ? 6 : 3.5}
-                className={isPlaying ? 'fill-accent' : 'fill-[#d9dee3]'}
-                opacity={isPlaying ? 1 : 0.85}
-              >
-                {isPlaying && !isPaused && (
-                  <animate attributeName="r" values="6;9;6" dur="1.6s" repeatCount="indefinite" />
-                )}
-              </circle>
+                r={isPlaying ? 6 : 2.5}
+                className={isPlaying ? 'fill-accent' : 'fill-[#8494a7]'}
+                opacity={isPlaying ? 1 : 0.8}
+              />
             </g>
           );
         })}
+        </g>
         </g>
       </svg>
 
@@ -175,10 +193,10 @@ export default function WorldMap({ stations, playingUuid, isPaused, zoom, engage
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-2 left-4 font-mono text-hint text-dim">
-        {engaged
-          ? `Drag to pan · knob zooms · tap a dot to play · tap a country to browse · ${dots.length} signals`
-          : `Tap the map for knob zoom · tap a dot to play · tap a country to browse · ${dots.length} signals`}
+      <div className="pointer-events-none absolute bottom-2 left-4 font-mono text-eyebrow text-dim">
+        {knobZoom
+          ? 'Drag to pan · tap a dot to play · tap a country to browse'
+          : 'Tap the map for knob zoom · tap a dot to play'}
       </div>
     </div>
   );
