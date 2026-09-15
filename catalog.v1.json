@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-13T02:45:43.104Z",
+  "updated_at": "2026-09-15T23:33:15.913Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.5.0",
+          "released_at": "2026-09-15T23:33:15.908Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.5.0.zip",
+            "size": 915175,
+            "sha256": "ad88eb597721a30860f11f57919bc2a246d9495048822bdeb3928fd56381bcbb"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Map tab: the knob now zooms the map by default. Once you tap a station dot\n  and it starts playing, the knob controls the volume instead; tapping the map\n  switches it back to zoom.\n- Map tab: zooming in reveals more station dots, up to 500 worldwide.\n- Fixed: leaving the Map tab (e.g. tapping a country) and coming back no\n  longer shrinks the station pool, so the extra dots from zooming stay.\n- Fixed: the map no longer jumps back to its default position when you return\n  to the Map tab; panning now persists across tab switches like zoom does.\n- Fixed: closing and reopening the app while a station plays now restores the\n  now-playing station. The companion's stream provider drops the play context,\n  so the phone reports no context uri; the app now matches the playing track's\n  uri against the saved station's stream url instead (foreign streams are\n  still never claimed). A restored session keeps the knob on its default\n  (zoom); volume mode is entered by tapping a station dot.\n- Added: starting a station now zooms the map onto that station's country with\n  the station at the center (zoom fits the country, 1x-4x). Stations without\n  coordinates fall back to the country view from the bundled map geometry,\n  so playing from any country's list still focuses the map when its tab is\n  opened. A relaunch restore deliberately leaves the saved map view alone.\n- UI: decluttered the help texts. The map hint is now a single contextual line\n  (the signal count moved out — the top bar already shows it), and the aside\n  shortcuts are four short lines: tabs/random/favorite, play/pause, exit,\n  knob state. No more duplicated knob info between the two.\n- Fixed: the now-playing button row moved further down (mt-12) so the favorite\n  button clears the Car Thing's physical knob overhang.\n- Help texts shrank to eyebrow size so \"1-5 tabs · R random · F favorite\" fits\n  on one row.\n- Map dots are smaller (r 2.5) and muted slate instead of shiny white; the\n  playing dot keeps its accent fill, pulse, and halo ring.\n- Opening the map tab (or launching the app) with a station playing now\n  centers the map on its halo dot; the playing dot is also pinned into the\n  dot pool so it never disappears at low zoom.\n- Play/pause button uses proper SVG icons instead of text glyphs.\n- Animations slimmed down for the weak device CPU: rows and country cards no\n  longer stagger one-by-one, all map dots share a single fade, and the\n  playing halo pulses via CSS instead of SMIL.\n- Recent tab has a \"Clear recent history\" row at the end of the list.\n- Glow-up: gradient app background, gradient primary buttons with a soft glow,\n  filled pill tabs, softer inputs, hover states on rows/cards, brighter map\n  countries and dots, a halo ring on the playing dot, a live status dot next\n  to the wordmark (pulses while playing), styled scrollbars, and Inter for UI\n  chrome (mono reserved for metadata). No new functionality."
+        },
         {
           "version": "0.4.7",
           "released_at": "2026-09-13T02:45:43.093Z",
