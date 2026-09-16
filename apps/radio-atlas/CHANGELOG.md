@@ -1,5 +1,21 @@
 # Atlas Radio
 
+## 0.5.2
+
+- Countries tab: long-press a country tile to open a picker with every
+  country that has streams, and swap the tile for your pick. Countries
+  already on the grid are disabled so each appears only once. Custom tiles
+  are saved and survive relaunch. The country list is fetched in the
+  background at startup and cached for a week, so the picker opens instantly.
+
+## 0.5.1
+
+- Map tab: tapping anywhere outside the map (header, tabs, now-playing
+  buttons) hands the knob to volume; tapping the map background still
+  returns it to zoom.
+- Favorites tab: "Clear all favorites" row at the end of the list, matching
+  the recent tab's "Clear recent history".
+
 ## 0.5.0
 
 - Map tab: the knob now zooms the map by default. Once you tap a station dot

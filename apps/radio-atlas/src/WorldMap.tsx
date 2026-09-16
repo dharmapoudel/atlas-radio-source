@@ -109,7 +109,7 @@ export default function WorldMap({ stations, pinStation, playingUuid, isPaused, 
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onClick={() => { if (tapGuard()) return; onMapClick(); }}
+        onClick={(e) => { e.stopPropagation(); if (tapGuard()) return; onMapClick(); }}
       >
         <g transform={`translate(${W / 2 + pan.x} ${H / 2 + pan.y}) scale(${zoom}) translate(${-W / 2} ${-H / 2})`}>
         {/* graticule */}

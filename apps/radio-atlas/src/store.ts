@@ -3,10 +3,14 @@
 // on Bridgething we use localStorage (per-webapp KV).
 
 import type { Station } from './types';
-import { cleanStationName } from './radioApi';
+import { cleanStationName, POPULAR_COUNTRIES } from './radioApi';
 
 const FAVORITES_KEY = 'radio-atlas:favorites';
 const RECENT_KEY = 'radio-atlas:recent';
+const TILES_KEY = 'radio-atlas:country-tiles';
+const COUNTRIES_CACHE_KEY = 'radio-atlas:countries-cache';
+// the directory's country list barely changes; a week-old cache is fine
+const COUNTRIES_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // v2: station names are cleaned at ingest, so older caches with dirty names
 // are ignored
 const STATION_CACHE_KEY = 'radio-atlas:station-cache:v2';
@@ -64,6 +68,35 @@ export const store = {
   clearRecent(): Station[] {
     write(RECENT_KEY, []);
     return [];
+  },
+  clearFavorites(): Station[] {
+    write(FAVORITES_KEY, []);
+    return [];
+  },
+
+  /** Country tiles for the Countries tab; persisted so long-press swaps stick */
+  getCountryTiles(): { code: string; name: string }[] {
+    const tiles = read<{ code: string; name: string }[]>(TILES_KEY, []);
+    if (!Array.isArray(tiles) || tiles.length === 0) return POPULAR_COUNTRIES;
+    return tiles
+      .filter(t => t && typeof t.code === 'string' && typeof t.name === 'string')
+      .map(t => ({ code: t.code.toUpperCase().slice(0, 2), name: t.name.slice(0, 100) }))
+      .slice(0, 24);
+  },
+  setCountryTiles(tiles: { code: string; name: string }[]): void {
+    write(TILES_KEY, tiles);
+  },
+
+  /** the full stream-country list, cached for a week so the picker opens instantly */
+  getCachedCountries(): { code: string; name: string; stationCount: number }[] | null {
+    const cached = read<{ fetchedAt: number; countries: { code: string; name: string; stationCount: number }[] } | null>(COUNTRIES_CACHE_KEY, null);
+    if (!cached || typeof cached.fetchedAt !== 'number') return null;
+    if (Date.now() - cached.fetchedAt > COUNTRIES_CACHE_TTL_MS) return null;
+    if (!Array.isArray(cached.countries) || cached.countries.length === 0) return null;
+    return cached.countries;
+  },
+  setCachedCountries(countries: { code: string; name: string; stationCount: number }[]): void {
+    write(COUNTRIES_CACHE_KEY, { fetchedAt: Date.now(), countries });
   },
 
   getCachedStations(key: string): CachedStations | null {

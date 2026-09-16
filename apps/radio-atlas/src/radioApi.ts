@@ -4,6 +4,12 @@
 
 import type { Station } from './types';
 
+export interface CountryInfo {
+  code: string;
+  name: string;
+  stationCount: number;
+}
+
 const USER_AGENT = 'RadioAtlas-Bridgething/0.1.0 (https://github.com/JoeyEamigh/bridgething)';
 
 // directory names often carry url and legal junk, e.g.
@@ -157,6 +163,24 @@ export const radioApi = {
       method: 'GET',
       headers: { 'User-Agent': USER_AGENT },
     }).catch(() => {});
+  },
+
+  /** Every country with at least one working station, alphabetical */
+  async countries(): Promise<CountryInfo[]> {
+    const res = await fetch(`${API_BASE}/json/countries?hidebroken=true`, {
+      headers: { 'User-Agent': USER_AGENT },
+    });
+    if (!res.ok) throw new Error(`Radio Browser error ${res.status}`);
+    const data = (await res.json()) as { name?: string; iso_3166_1?: string; stationcount?: number }[];
+    if (!Array.isArray(data)) throw new Error('Invalid country data');
+    return data
+      .filter(c => c && typeof c.iso_3166_1 === 'string' && c.iso_3166_1.length === 2 && Number(c.stationcount) > 0)
+      .map(c => ({
+        code: String(c.iso_3166_1).toUpperCase(),
+        name: String(c.name || c.iso_3166_1).trim() || String(c.iso_3166_1),
+        stationCount: Number(c.stationcount),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   },
 };
 

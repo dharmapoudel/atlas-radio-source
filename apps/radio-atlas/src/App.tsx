@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { POPULAR_COUNTRIES, radioApi } from './radioApi';
+import { radioApi } from './radioApi';
+import type { CountryInfo } from './radioApi';
 import { store } from './store';
 import { getClient } from './client';
 import type { Station, TabMode } from './types';
@@ -68,6 +69,18 @@ export default function App() {
 
   const [favorites, setFavorites] = useState<Station[]>(() => store.getFavorites());
   const [recent, setRecent] = useState<Station[]>(() => store.getRecent());
+  // country tiles on the Countries tab; long-press a tile to swap it for
+  // another country. persisted so custom tiles survive relaunch.
+  const [tiles, setTiles] = useState<{ code: string; name: string }[]>(() => store.getCountryTiles());
+  const [tilePickerIndex, setTilePickerIndex] = useState<number | null>(null);
+  const [allCountries, setAllCountries] = useState<CountryInfo[] | null>(null);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [countriesError, setCountriesError] = useState<string | null>(null);
+  const [pressingTile, setPressingTile] = useState<number | null>(null);
+  const tilePressTimer = useRef<number | null>(null);
+  const tilePressStart = useRef<{ x: number; y: number } | null>(null);
+  const tileLongPressFired = useRef(false);
+  const countriesFetched = useRef(false);
   // guards against a single knob press arriving as two key events, which
   // would pause then instantly resume
   const lastToggleAt = useRef(0);
@@ -195,6 +208,82 @@ export default function App() {
       'Could not reach the station directory. Check your connection.');
   }, [loadCached]);
 
+  const cancelTilePress = useCallback(() => {
+    if (tilePressTimer.current) {
+      clearTimeout(tilePressTimer.current);
+      tilePressTimer.current = null;
+    }
+    tilePressStart.current = null;
+    setPressingTile(null);
+  }, []);
+
+  // fetches the full stream-country list once; the result is cached for a week
+  const fetchCountries = useCallback(() => {
+    if (countriesFetched.current) return;
+    countriesFetched.current = true;
+    setCountriesLoading(true);
+    setCountriesError(null);
+    radioApi.countries()
+      .then(list => {
+        store.setCachedCountries(list);
+        setAllCountries(list);
+        setCountriesLoading(false);
+      })
+      .catch(() => {
+        countriesFetched.current = false;
+        setCountriesError('Could not load the country list. Check your connection.');
+        setCountriesLoading(false);
+      });
+  }, []);
+
+  const openTilePicker = useCallback((index: number) => {
+    setTilePickerIndex(index);
+    if (!allCountries) fetchCountries();
+  }, [allCountries, fetchCountries]);
+
+  const closeTilePicker = useCallback(() => setTilePickerIndex(null), []);
+
+  const pickCountryTile = useCallback((index: number, c: CountryInfo) => {
+    setTiles(prevTiles => {
+      const next = prevTiles.map((t, i) => (i === index ? { code: c.code, name: c.name } : t));
+      store.setCountryTiles(next);
+      return next;
+    });
+    setTilePickerIndex(null);
+  }, []);
+
+  const retryCountries = useCallback(() => {
+    // countriesFetched is false after a failure, so this refetches
+    fetchCountries();
+  }, [fetchCountries]);
+
+  const onTilePointerDown = (index: number, e: React.PointerEvent) => {
+    tileLongPressFired.current = false;
+    tilePressStart.current = { x: e.clientX, y: e.clientY };
+    setPressingTile(index);
+    tilePressTimer.current = window.setTimeout(() => {
+      tilePressTimer.current = null;
+      tilePressStart.current = null;
+      tileLongPressFired.current = true;
+      setPressingTile(null);
+      openTilePicker(index);
+    }, 550);
+  };
+
+  const onTilePointerMove = (e: React.PointerEvent) => {
+    const s = tilePressStart.current;
+    if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 12) cancelTilePress();
+  };
+
+  const onTileClick = (code: string, name: string) => {
+    // a tap that ends a long-press must not also open the country
+    if (tileLongPressFired.current) {
+      tileLongPressFired.current = false;
+      return;
+    }
+    loadCountry(code, name);
+  };
+
   const runSearch = useCallback(async (q: string) => {
     const text = q.trim();
     if (!text) {
@@ -240,6 +329,17 @@ export default function App() {
     loadMapStations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // prefetch the stream-country list at startup so the tile picker opens
+  // instantly; a fresh-enough localStorage copy is used with no fetch at all
+  useEffect(() => {
+    const cached = store.getCachedCountries();
+    if (cached) {
+      setAllCountries(cached);
+      return;
+    }
+    fetchCountries();
+  }, [fetchCountries]);
 
   // ---- playback via the phone ----
   // The Car Thing has no speaker, so streams play on the phone through the
@@ -422,6 +522,11 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
+      // the tile picker eats Escape so it closes instead of exiting the app
+      if (tilePickerIndex != null) {
+        if (e.key === 'Escape') closeTilePicker();
+        return;
+      }
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
         if (e.key === 'Escape') { target.blur(); exitApp(); }
         return;
@@ -461,7 +566,7 @@ export default function App() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('wheel', onWheel);
     };
-  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, mapKnobZoom, nudgeVolume]);
+  }, [togglePlayPause, tuneRandom, selectedUuid, stations, toggleFavorite, exitApp, tab, mapKnobZoom, nudgeVolume, tilePickerIndex, closeTilePicker]);
 
   const visibleStations = useMemo(() => {
     if (tab === 'favorites') return favorites;
@@ -485,7 +590,11 @@ export default function App() {
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col text-off-white">
+    <div
+      className="relative flex h-full w-full flex-col text-off-white"
+      // any deliberate tap outside the map area hands the knob to volume
+      onClick={() => { if (tab === 'map') setMapKnobZoom(false); }}
+    >
 
       {/* header */}
       <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule bg-white/[0.02] px-4">
@@ -576,11 +685,17 @@ export default function App() {
             </div>
           ) : tab === 'country' && !country ? (
             <div className="grid h-full grid-cols-3 grid-rows-4 gap-2 p-3 animate-fade-up">
-              {POPULAR_COUNTRIES.map((c) => (
+              {tiles.map((c, i) => (
                 <button
                   key={c.code}
-                  onClick={() => loadCountry(c.code, c.name)}
-                  className="rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-3 text-left transition-colors hover:border-accent/40 active:bg-neutral-soft"
+                  onClick={() => onTileClick(c.code, c.name)}
+                  onPointerDown={(e) => onTilePointerDown(i, e)}
+                  onPointerUp={cancelTilePress}
+                  onPointerCancel={cancelTilePress}
+                  onPointerLeave={cancelTilePress}
+                  onPointerMove={onTilePointerMove}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className={`rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-3 text-left transition-all hover:border-accent/40 active:bg-neutral-soft ${pressingTile === i ? 'scale-95 border-accent/60' : ''}`}
                 >
                   <div className="truncate font-display text-row font-medium">{c.name}</div>
                   <div className="font-mono text-hint text-dim">{c.code}</div>
@@ -649,6 +764,14 @@ export default function App() {
                   className="block w-full border-t border-rule px-4 py-3 text-center font-mono text-hint text-dim transition-colors hover:text-err active:bg-neutral-soft"
                 >
                   Clear recent history
+                </button>
+              )}
+              {tab === 'favorites' && visibleStations.length > 0 && (
+                <button
+                  onClick={() => setFavorites(store.clearFavorites())}
+                  className="block w-full border-t border-rule px-4 py-3 text-center font-mono text-hint text-dim transition-colors hover:text-err active:bg-neutral-soft"
+                >
+                  Clear all favorites
                 </button>
               )}
             </>
@@ -726,6 +849,66 @@ export default function App() {
           </div>
         </aside>
       </div>
+
+      {/* country tile picker: long-press a Countries tile to swap it */}
+      {tilePickerIndex != null && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-6 animate-fade-in"
+          onClick={closeTilePicker}
+        >
+          <div
+            className="flex max-h-full w-full max-w-sm flex-col overflow-hidden rounded-xl border border-white/10 bg-[#14161b] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-rule px-4 py-3">
+              <div className="font-display text-row font-medium text-near">Pick a country</div>
+              <button
+                onClick={closeTilePicker}
+                className="rounded px-2 py-1 font-mono text-body text-dim transition-colors hover:text-near"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {countriesLoading ? (
+                <div className="grid place-items-center p-8 font-mono text-body text-dim">
+                  Loading countries…
+                </div>
+              ) : countriesError ? (
+                <div className="p-8 text-center">
+                  <div className="font-mono text-body text-warn">{countriesError}</div>
+                  <button
+                    onClick={retryCountries}
+                    className="mt-4 rounded-lg border border-white/10 bg-white/[0.05] px-4 py-2 font-body text-body font-medium text-near transition-all hover:bg-white/[0.1] active:scale-95"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <ul className="divide-y divide-rule">
+                  {(allCountries ?? []).map((c) => {
+                    const alreadyTiled = tiles.some(t => t.code === c.code);
+                    return (
+                      <li key={c.code}>
+                        <button
+                          disabled={alreadyTiled}
+                          onClick={() => pickCountryTile(tilePickerIndex, c)}
+                          className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors ${alreadyTiled ? 'opacity-35' : 'hover:bg-white/[0.04] active:bg-neutral-soft'}`}
+                        >
+                          <span className="truncate font-body text-row text-near">{c.name}</span>
+                          <span className="shrink-0 font-mono text-hint text-dim">
+                            {c.stationCount.toLocaleString()} ▸
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
