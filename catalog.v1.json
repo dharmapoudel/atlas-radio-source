@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-15T23:33:15.913Z",
+  "updated_at": "2026-09-16T02:28:39.295Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.5.2",
+          "released_at": "2026-09-16T02:28:39.262Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.5.2.zip",
+            "size": 919819,
+            "sha256": "3e3b4177438ca492a736c9156bfa2256fbccda5506e2af63c2788ff4a944203e"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Countries tab: long-press a country tile to open a picker with every\n  country that has streams, and swap the tile for your pick. Countries\n  already on the grid are disabled so each appears only once. Custom tiles\n  are saved and survive relaunch. The country list is fetched in the\n  background at startup and cached for a week, so the picker opens instantly."
+        },
         {
           "version": "0.5.0",
           "released_at": "2026-09-15T23:33:15.908Z",
