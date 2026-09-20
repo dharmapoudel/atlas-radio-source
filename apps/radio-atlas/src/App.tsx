@@ -579,6 +579,13 @@ export default function App() {
   const switchTab = (t: TabMode) => {
     setTab(t);
     setError(null);
+    if (t === 'favorites' || t === 'recent') {
+      // Local tabs: data comes from on-device storage, no network fetch.
+      // Clear any in-flight loading state so the list renders immediately
+      // instead of sitting on "Tuning in..." until a background fetch lands.
+      setLoading(false);
+      return;
+    }
     setMapKnobZoom(true);
     if (t === 'map') {
       const p = playingRef.current;

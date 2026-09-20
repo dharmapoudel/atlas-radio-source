@@ -1,5 +1,11 @@
 # Atlas Radio
 
+## 0.5.3
+
+- Favorites/Recent tabs: tapping them no longer shows "Tuning in..." while a
+  background station fetch is still in flight. Local tabs now clear the
+  loading state so the saved list (or the empty-state hint) renders
+  immediately on switch.
 ## 0.5.2
 
 - Countries tab: long-press a country tile to open a picker with every
