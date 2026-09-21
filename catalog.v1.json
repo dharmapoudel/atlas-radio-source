@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-21T01:01:40.239Z",
+  "updated_at": "2026-09-21T01:11:08.356Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -35,7 +35,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- New app icon: a charcoal retro radio.\n- Map: default zoom is 1; while a station is playing, focus zooms to 1.5 and\n  stopping returns it to 1.\n- World tab: the station listing is randomized on every visit.\n- Knob: in the World, Countries, Favorites and Recents tabs the knob now\n  scrolls the list and a single knob press selects/plays the highlighted\n  item (highlighted country tile on the Countries grid); on the Map tab a\n  knob press toggles play/pause.\n- Knob volume: for 5s after a station is selected the knob drives\n  the phone volume, then hands back to the list. A tap outside the\n  list content also hands the knob to volume until the list is\n  tapped again; on the map, tapping outside the map area does the\n  same instead of zooming."
+          "changelog": "- New app icon: a charcoal retro radio.\n- Map: default zoom is 1; while a station is playing, focus zooms to 1.5 and\n  stopping returns it to 1.\n- World tab: the station listing is randomized on every visit.\n- Knob: in the World, Countries, Favorites and Recents tabs the knob now\n  scrolls the list and a single knob press selects/plays the highlighted\n  item (highlighted country tile on the Countries grid); on the Map tab a\n  knob press toggles play/pause.\n- Knob volume: for 8s after a station is selected the knob drives\n  the phone volume, then hands back to the list. A tap outside the\n  list content also hands the knob to volume until the list is\n  tapped again; on the map, tapping outside the map area does the\n  same instead of zooming."
         },
         {
           "version": "0.5.3",
