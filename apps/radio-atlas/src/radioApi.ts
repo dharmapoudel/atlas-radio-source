@@ -3,6 +3,7 @@
 // API docs: https://www.radio-browser.info/
 
 import type { Station } from './types';
+import { shuffled } from './utils';
 
 export interface CountryInfo {
   code: string;
@@ -148,12 +149,7 @@ export const radioApi = {
       const excluded = new Set(exclude);
       const fresh = stations.filter(s => !excluded.has(s.uuid));
       const pool = fresh.length > 0 ? fresh : stations;
-      // Shuffle and take up to 10
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
-      return pool.slice(0, 10);
+      return shuffled(pool).slice(0, 10);
     });
   },
 

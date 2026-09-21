@@ -2,7 +2,7 @@
 // playback starts (zoom onto the playing station's country, station centered).
 import world from './world.json';
 
-interface CountryGeom {
+export interface CountryGeom {
   c: string;
   n: string;
   p: number[][][];

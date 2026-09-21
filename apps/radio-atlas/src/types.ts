@@ -22,11 +22,5 @@ export interface Station {
 
 export type TabMode = 'world' | 'map' | 'search' | 'country' | 'favorites' | 'recent';
 
-export interface PlayerState {
-  playing: boolean;
-  loading: boolean;
-  error: string | null;
-  volume: number;
-  muted: boolean;
-  station: Station | null;
-}
+// the tab bar order; also the allow-list for the persisted last-open tab
+export const TABS: TabMode[] = ['map', 'world', 'country', 'favorites', 'recent'];

@@ -16,50 +16,55 @@
   src: url("./fonts/Inter-Variable.ttf") format("truetype-variations");
 }
 
+/* script fallbacks so station names in Devanagari (Hindi/Nepali) and Arabic
+   render instead of tofu blocks; unicode-range keeps them out of the way of
+   latin text */
+@font-face {
+  font-family: "Noto Sans Devanagari";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/NotoSansDevanagari-subset.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+A830-A839, U+A8E0-A8FF;
+}
+
+@font-face {
+  font-family: "Noto Sans Arabic";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/NotoSansArabic-subset.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08FF, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
 @theme {
   --color-off-white: #efefef;
   --color-bg: #0a0c0e;
   --color-screen: #060809;
   --color-fg: #efefef;
-  --color-muted: #a7adb5;
-  --color-accent: #00a8e8;
-  --color-ok: #3ddc84;
+  --color-accent: #f8c03d;
   --color-err: #dc3d3d;
   --color-warn: #ff7070;
-  --color-experimental: #ffb066;
 
   --color-rule: color-mix(in srgb, var(--color-fg) 10%, transparent);
-  --color-rule-strong: color-mix(in srgb, var(--color-fg) 15%, transparent);
   --color-edge: color-mix(in srgb, var(--color-fg) 25%, transparent);
   --color-dim: color-mix(in srgb, var(--color-fg) 35%, transparent);
-  --color-soft: color-mix(in srgb, var(--color-fg) 55%, transparent);
   --color-near: color-mix(in srgb, var(--color-fg) 80%, transparent);
 
   --color-accent-soft: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  --color-ok-soft: color-mix(in srgb, var(--color-ok) 14%, transparent);
-  --color-err-soft: color-mix(in srgb, var(--color-err) 14%, transparent);
-  --color-warn-soft: color-mix(in srgb, var(--color-warn) 14%, transparent);
-  --color-experimental-soft: color-mix(in srgb, var(--color-experimental) 14%, transparent);
   --color-neutral-soft: color-mix(in srgb, var(--color-fg) 8%, transparent);
 
   --text-eyebrow: 0.6875rem;
   --text-hint: 0.75rem;
   --text-body: 0.875rem;
   --text-row: 0.9375rem;
-  --text-row-lg: 1.0625rem;
-  --text-title: 1.25rem;
   --text-hero: 1.375rem;
-  --text-screen-title: 2.125rem;
 
-  --font-display: "Outfit", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", "Noto Sans Devanagari", "Noto Sans Arabic", system-ui, sans-serif;
+  --font-body: "Inter", "Noto Sans Devanagari", "Noto Sans Arabic", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --tracking-wordmark: -0.03em;
   --tracking-display: -0.02em;
-  --tracking-tight-1: -0.01em;
-
-  --radius-none: 0;
 
   --animate-fade-up: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fade-in 0.3s ease-out both;

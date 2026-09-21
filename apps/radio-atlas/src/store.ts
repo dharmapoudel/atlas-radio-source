@@ -44,9 +44,6 @@ export const store = {
   getFavorites(): Station[] {
     return read<Station[]>(FAVORITES_KEY, []).map(s => ({ ...s, name: cleanStationName(s.name) }));
   },
-  isFavorite(uuid: string): boolean {
-    return store.getFavorites().some(s => s.uuid === uuid);
-  },
   toggleFavorite(station: Station): Station[] {
     const favs = store.getFavorites();
     const idx = favs.findIndex(s => s.uuid === station.uuid);

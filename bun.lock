@@ -12,7 +12,7 @@
     },
     "apps/radio-atlas": {
       "name": "atlas-radio",
-      "version": "0.3.3",
+      "version": "0.5.2",
       "dependencies": {
         "@bridgething/client": "^0.12.1",
         "preact": "^10.29.7",

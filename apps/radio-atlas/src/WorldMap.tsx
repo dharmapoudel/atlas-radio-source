@@ -5,14 +5,8 @@
 
 import { useMemo, useRef } from 'react';
 import world from './world.json';
-import { project, MAP_VIEW } from './mapFocus';
+import { project, MAP_VIEW, type CountryGeom } from './mapFocus';
 import type { Station } from './types';
-
-interface CountryGeom {
-  c: string;
-  n: string;
-  p: number[][][];
-}
 
 const COUNTRIES = world as CountryGeom[];
 
