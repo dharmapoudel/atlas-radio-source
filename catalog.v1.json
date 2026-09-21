@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-21T01:36:41.339Z",
+  "updated_at": "2026-09-21T01:41:52.961Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.6.4",
+          "released_at": "2026-09-21T01:41:52.958Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.6.4.zip",
+            "size": 1204859,
+            "sha256": "6018163fc31b4b73f624f7fdbcc1861054c3c87c25ab5ba4bad79641aef4fac2"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Icon: charcoal retro radio with antenna."
+        },
         {
           "version": "0.6.3",
           "released_at": "2026-09-21T01:36:41.336Z",
