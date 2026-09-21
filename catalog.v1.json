@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-20T21:17:59.197Z",
+  "updated_at": "2026-09-21T00:48:19.883Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.6.0",
+          "released_at": "2026-09-21T00:48:19.876Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.6.0.zip",
+            "size": 1207495,
+            "sha256": "490849c39b6633f077a4db933c6df6ec854ba7952ed61cfb7244c0cd4abbdd95"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- New app icon: a retro radio with a black background.\n- Map: default zoom is 1; while a station is playing, focus zooms to 1.5 and\n  stopping returns it to 1.\n- World tab: the station listing is randomized on every visit.\n- Knob: in the World, Countries, Favorites and Recents tabs the knob now\n  scrolls the list and a single knob press selects/plays the highlighted\n  item (highlighted country tile on the Countries grid); on the Map tab a\n  knob press toggles play/pause.\n- Station names in Nepali, Hindi and Arabic scripts now render properly\n  (added Noto Sans Devanagari and Noto Sans Arabic fonts).\n- Removed the ESC-button back/exit code; the M button is the reliable way\n  out of the app.\n- Accent color is now the yellow #f8c03d app-wide: tab buttons, list highlights, the map playing dot, and search or favorite highlights."
+        },
         {
           "version": "0.5.3",
           "released_at": "2026-09-20T21:17:59.197Z",
