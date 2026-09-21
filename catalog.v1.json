@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-21T01:41:52.961Z",
+  "updated_at": "2026-09-21T01:50:08.280Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -24,6 +24,20 @@
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
         {
+          "version": "0.6.5",
+          "released_at": "2026-09-21T01:50:08.275Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.6.5.zip",
+            "size": 1205561,
+            "sha256": "301888f6534ee96179dab8ef0caf3b039bd033a18f4901be7e3064b13383299e"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- New icon: a charcoal retro radio with an antenna.\n- Remembers the last open tab when the app reopens.\n- World tab: the station listing is re-randomized on every visit; map\n  defaults to zoom 1, zooming to 1.5 while a station plays.\n- Knob: scrolls lists with single-press select in World, Countries,\n  Favorites and Recents; on the Map tab a press toggles play/pause, and\n  turning it zooms. After selecting a station the knob drives volume for\n  8s, then hands back to the list; tapping outside the list hands the\n  knob to volume until the list is tapped again.\n- Added Noto Sans Devanagari and Arabic subsets so station names no\n  longer render as tofu boxes.\n- Removed the ESC key handler (the M button is the way out).\n- Favorites and Recents tabs load instantly from local data; yellow\n  accent (#f8c03d) applied across the app."
+        },
+        {
           "version": "0.6.4",
           "released_at": "2026-09-21T01:41:52.958Z",
           "download": {
@@ -35,7 +49,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- Icon: charcoal retro radio with antenna."
+          "changelog": null
         },
         {
           "version": "0.6.3",
@@ -49,7 +63,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- Icon: back to the charcoal retro radio."
+          "changelog": null
         },
         {
           "version": "0.6.2",
@@ -63,7 +77,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- New app icon: dark circle with a yellow center bar (white background\n  removed)."
+          "changelog": null
         },
         {
           "version": "0.6.1",
@@ -77,7 +91,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- Knob volume window after selecting a station extended from 5s to 8s.\n- Fixed: switching tabs (or hitting random/search) handed the knob to\n  volume; the knob now stays on the list until the list is tapped out of."
+          "changelog": null
         },
         {
           "version": "0.6.0",
@@ -91,7 +105,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- New app icon: a charcoal retro radio.\n- Map: default zoom is 1; while a station is playing, focus zooms to 1.5 and\n  stopping returns it to 1.\n- World tab: the station listing is randomized on every visit.\n- Knob: in the World, Countries, Favorites and Recents tabs the knob now\n  scrolls the list and a single knob press selects/plays the highlighted\n  item (highlighted country tile on the Countries grid); on the Map tab a\n  knob press toggles play/pause.\n- Knob volume: for 8s after a station is selected the knob drives\n  the phone volume, then hands back to the list. A tap outside the\n  list content also hands the knob to volume until the list is\n  tapped again; on the map, tapping outside the map area does the\n  same instead of zooming."
+          "changelog": null
         },
         {
           "version": "0.5.3",
