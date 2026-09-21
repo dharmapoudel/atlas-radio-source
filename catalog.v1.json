@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-21T01:11:08.356Z",
+  "updated_at": "2026-09-21T01:12:51.802Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.6.1",
+          "released_at": "2026-09-21T01:12:51.753Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.6.1.zip",
+            "size": 1200894,
+            "sha256": "5f0cbdd2f8e24d4924015f1461f26b707f743ff9cc610bc2db84574500e73de2"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Knob volume window after selecting a station extended from 5s to 8s.\n- Fixed: switching tabs (or hitting random/search) handed the knob to\n  volume; the knob now stays on the list until the list is tapped out of."
+        },
         {
           "version": "0.6.0",
           "released_at": "2026-09-21T00:48:19.876Z",
