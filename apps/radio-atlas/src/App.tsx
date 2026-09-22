@@ -59,6 +59,100 @@ function loadSavedTab(): TabMode {
   return 'map';
 }
 
+// portrait detection: in portrait the daemon pins the page to a 480x800
+// layout box and rotates it onto the panel, but the layout viewport stays
+// 800x480, so CSS orientation queries never fire. screen.orientation does
+// report the rotated orientation, so detect it in JS and reflow with
+// conditional classes below. landscape rendering is untouched.
+function detectPortrait(): boolean {
+  try {
+    if (screen.orientation?.type.startsWith('portrait')) return true;
+  } catch { /* older webview */ }
+  try {
+    if (window.matchMedia('(orientation: portrait)').matches) return true;
+  } catch { /* no matchMedia */ }
+  return false;
+}
+
+// Portrait panel split: the two landscape panels (main flex-1, aside w-64)
+// stack top/bottom in portrait, each sized proportionally to its landscape
+// width (aside = 256px of 800px -> 32%, main = the other 544px -> 68%).
+const PORTRAIT_MAIN_FLEX = '68 0 0%';
+const PORTRAIT_ASIDE_FLEX = '32 0 0%';
+
+function BrandMark({ playing, isPaused }: { playing: Station | null; isPaused: boolean }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
+          playing
+            ? isPaused
+              ? 'bg-accent'
+              : 'bg-accent animate-pulse-dot shadow-[0_0_10px_var(--color-accent)]'
+            : 'bg-white/15'
+        }`}
+      />
+      <div className="font-display text-xl font-bold tracking-display">RADIO ATLAS</div>
+    </div>
+  );
+}
+
+function SearchForm({ query, setQuery, onSearch, className }: {
+  query: string;
+  setQuery: (q: string) => void;
+  onSearch: (q: string) => void;
+  className?: string;
+}) {
+  return (
+    <form
+      className={className ?? 'flex flex-1 items-center gap-2'}
+      onSubmit={e => { e.preventDefault(); onSearch(query); }}
+    >
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Search station, country, genre…"
+        maxLength={128}
+        className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-body text-near placeholder:text-dim transition-colors focus:border-accent/60 focus:bg-white/[0.06] focus:outline-none"
+      />
+      <button
+        type="submit"
+        className="h-10 shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-4 font-body text-body font-medium text-near transition-all hover:bg-white/[0.1] active:scale-95"
+      >
+        Search
+      </button>
+    </form>
+  );
+}
+
+function PlayPauseButton({ audioLoading, isPaused, onToggle, className }: {
+  audioLoading: boolean;
+  isPaused: boolean;
+  onToggle: () => void;
+  className: string;
+}) {
+  const icon = isPaused ? (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M4 2.3v11.4c0 .8.9 1.3 1.6.9l8.7-5.7c.6-.4.6-1.4 0-1.8L5.6 1.4c-.7-.4-1.6.1-1.6.9z" />
+    </svg>
+  ) : (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="3" y="2" width="4" height="12" rx="1.2" />
+      <rect x="9" y="2" width="4" height="12" rx="1.2" />
+    </svg>
+  );
+  return (
+    <button onClick={onToggle} className={className}>
+      {audioLoading ? '…' : (
+        <span className="flex items-center justify-center gap-2">
+          {icon}
+          {isPaused ? 'Play' : 'Pause'}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabMode>(loadSavedTab);
   const [stations, setStations] = useState<Station[]>([]);
@@ -108,6 +202,26 @@ export default function App() {
   // so the click bubbling up to the root div afterwards does not
   // immediately undo it (the tab buttons live outside the list)
   const skipFocusSync = useRef(false);
+  // portrait layout (480x800): the daemon rotates the page, so reflow to a
+  // vertical stack with a compact now-playing bar. landscape is untouched.
+  const [isPortrait, setIsPortrait] = useState<boolean>(detectPortrait);
+  useEffect(() => {
+    const update = () => setIsPortrait(detectPortrait());
+    let orientation: ScreenOrientation | null = null;
+    let mq: MediaQueryList | null = null;
+    try {
+      orientation = screen.orientation;
+      orientation.addEventListener('change', update);
+      mq = window.matchMedia('(orientation: portrait)');
+      mq.addEventListener('change', update);
+    } catch { /* listeners unavailable */ }
+    return () => {
+      try {
+        orientation?.removeEventListener('change', update);
+        mq?.removeEventListener('change', update);
+      } catch { /* ignore */ }
+    };
+  }, []);
   // the map's own station pool, denser than the world list so zooming in
   // can reveal more dots
   const [mapStations, setMapStations] = useState<Station[]>([]);
@@ -672,54 +786,43 @@ export default function App() {
       }}
     >
 
-      {/* header */}
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule bg-white/[0.02] px-4">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
-              playing
-                ? isPaused
-                  ? 'bg-accent'
-                  : 'bg-accent animate-pulse-dot shadow-[0_0_10px_var(--color-accent)]'
-                : 'bg-white/15'
-            }`}
-          />
-          <div className="font-display text-xl font-bold tracking-display">RADIO ATLAS</div>
-        </div>
-        <form
-          className="flex flex-1 items-center gap-2"
-          onSubmit={e => { e.preventDefault(); runSearch(query); }}
-        >
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search station, country, genre…"
-            maxLength={128}
-            className="h-10 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-body text-near placeholder:text-dim transition-colors focus:border-accent/60 focus:bg-white/[0.06] focus:outline-none"
-          />
+      {/* header: portrait stacks the search under the brand row so the
+          input gets full width in the 480px layout */}
+      {isPortrait ? (
+        <header className="shrink-0 border-b border-rule bg-white/[0.02] px-4 pb-3 pt-3">
+          <div className="flex items-center justify-between gap-3">
+            <BrandMark playing={playing} isPaused={isPaused} />
+            <button
+              onClick={tuneRandom}
+              title="Tune randomly (R)"
+              className={`h-10 shrink-0 px-4 text-body ${ACCENT_BTN}`}
+            >
+              Random
+            </button>
+          </div>
+          <SearchForm query={query} setQuery={setQuery} onSearch={runSearch} className="mt-2.5 flex items-center gap-2" />
+        </header>
+      ) : (
+        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule bg-white/[0.02] px-4">
+          <BrandMark playing={playing} isPaused={isPaused} />
+          <SearchForm query={query} setQuery={setQuery} onSearch={runSearch} />
           <button
-            type="submit"
-            className="h-10 rounded-lg border border-white/10 bg-white/[0.05] px-4 font-body text-body font-medium text-near transition-all hover:bg-white/[0.1] active:scale-95"
+            onClick={tuneRandom}
+            title="Tune randomly (R)"
+            className={`h-10 px-4 text-body ${ACCENT_BTN}`}
           >
-            Search
+            Random
           </button>
-        </form>
-        <button
-          onClick={tuneRandom}
-          title="Tune randomly (R)"
-          className={`h-10 px-4 text-body ${ACCENT_BTN}`}
-        >
-          Random
-        </button>
-      </header>
+        </header>
+      )}
 
       {/* tabs */}
-      <nav className="flex h-11 shrink-0 items-center gap-1 border-b border-rule px-4">
+      <nav className={`flex h-11 shrink-0 items-center gap-1 border-b border-rule px-4${isPortrait ? ' overflow-x-auto' : ''}`}>
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => switchTab(t)}
-            className={`rounded-full px-4 py-1.5 font-body text-body font-medium capitalize transition-all active:scale-95 ${
+            className={`rounded-full px-4 py-1.5 font-body text-body font-medium capitalize transition-all active:scale-95${isPortrait ? ' shrink-0' : ''} ${
               tab === t
                 ? 'bg-accent text-screen shadow-[0_2px_10px_rgba(248,192,61,0.35)]'
                 : 'text-dim hover:bg-white/[0.06] hover:text-near'
@@ -731,15 +834,17 @@ export default function App() {
             )}
           </button>
         ))}
-        <div className="ml-auto font-mono text-hint text-dim">
-          {country ? `${country.name}` : visibleStations.length > 0 ? `${visibleStations.length} stations` : ''}
-        </div>
+        {!isPortrait && (
+          <div className="ml-auto font-mono text-hint text-dim">
+            {country ? `${country.name}` : visibleStations.length > 0 ? `${visibleStations.length} stations` : ''}
+          </div>
+        )}
       </nav>
 
       {/* body */}
-      <div className="flex min-h-0 flex-1">
+      <div className={`flex min-h-0 flex-1${isPortrait ? ' flex-col' : ''}`}>
         {/* station list / country grid / map */}
-        <main key={tab} ref={listRef} className="min-w-0 flex-1 overflow-y-auto animate-fade-in">
+        <main key={tab} ref={listRef} className="min-w-0 flex-1 overflow-y-auto animate-fade-in" style={isPortrait ? { flex: PORTRAIT_MAIN_FLEX } : undefined}>
           {tab === 'map' ? (
             <div className="h-full w-full">
               <WorldMap
@@ -760,7 +865,9 @@ export default function App() {
               />
             </div>
           ) : tab === 'country' && !country ? (
-            <div className="grid h-full grid-cols-3 grid-rows-4 gap-2 p-3 animate-fade-up">
+            <div className={isPortrait
+              ? 'grid h-full auto-rows-fr grid-cols-2 gap-2 p-3 animate-fade-up'
+              : 'grid h-full grid-cols-3 grid-rows-4 gap-2 p-3 animate-fade-up'}>
               {tiles.map((c, i) => (
                 <button
                   key={c.code}
@@ -856,8 +963,15 @@ export default function App() {
           )}
         </main>
 
-        {/* now playing */}
-        <aside className="flex w-64 shrink-0 flex-col border-l border-rule bg-screen px-3 py-4">
+        {/* now playing: portrait stacks the two landscape panels top/bottom,
+            the aside taking 32% below the list (proportional to its w-64
+            landscape width) with its full content intact */}
+        <aside
+          className={isPortrait
+            ? 'flex shrink-0 flex-col overflow-y-auto border-t border-rule bg-screen px-3 py-4'
+            : 'flex w-64 shrink-0 flex-col border-l border-rule bg-screen px-3 py-4'}
+          style={isPortrait ? { flex: PORTRAIT_ASIDE_FLEX } : undefined}
+        >
           <div className="font-mono text-eyebrow uppercase tracking-[0.2em] text-dim">Now playing</div>
           {playing ? (
             <>
@@ -871,28 +985,13 @@ export default function App() {
               {audioError && (
                 <div className="mt-2 font-mono text-hint text-warn">{audioError}</div>
               )}
-              <div className="mt-12 flex gap-2">
-                <button
-                  onClick={togglePlayPause}
+              <div className={isPortrait ? 'mt-4 flex gap-2' : 'mt-12 flex gap-2'}>
+                <PlayPauseButton
+                  audioLoading={audioLoading}
+                  isPaused={isPaused}
+                  onToggle={togglePlayPause}
                   className={`flex-1 px-3 py-2.5 text-row ${ACCENT_BTN}`}
-                >
-                  {audioLoading ? '…' : isPaused ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                        <path d="M4 2.3v11.4c0 .8.9 1.3 1.6.9l8.7-5.7c.6-.4.6-1.4 0-1.8L5.6 1.4c-.7-.4-1.6.1-1.6.9z" />
-                      </svg>
-                      Play
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                        <rect x="3" y="2" width="4" height="12" rx="1.2" />
-                        <rect x="9" y="2" width="4" height="12" rx="1.2" />
-                      </svg>
-                      Pause
-                    </span>
-                  )}
-                </button>
+                />
                 <button
                   onClick={stop}
                   className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2.5 font-body text-row text-near transition-all hover:bg-white/[0.1] active:scale-95"
@@ -919,6 +1018,7 @@ export default function App() {
             </div>
           )}
 
+          {!isPortrait && (
           <div className="mt-auto pt-4 font-mono text-[10px] leading-relaxed text-dim">
             1-5 tabs · R random · F favorite<br />
             {tab === 'map' ? (
@@ -927,6 +1027,7 @@ export default function App() {
               <>{'Knob turn: scroll list · press: play'}<br />{'volume 8s after play · tap outside list for volume'}</>
             )}
           </div>
+          )}
         </aside>
       </div>
 

@@ -1,5 +1,13 @@
 # Atlas Radio
 
+## 0.6.6
+
+- Portrait layout: the two landscape panels stack top/bottom, sized
+  proportionally to their landscape widths (station list 68% on top,
+  Now Playing 32% below). Header stacks the search under the brand row,
+  tabs scroll horizontally, country tiles use two columns.
+- Landscape (800x480) is unchanged.
+
 ## 0.6.5
 
 - New icon: a charcoal retro radio with an antenna.
