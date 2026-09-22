@@ -51,6 +51,10 @@ const ACCENT_BTN = 'rounded-lg bg-gradient-to-b from-[#facb54] to-[#eda92e] font
 
 // last-open-tab persistence: the app reopens on whatever tab was active
 const TAB_STORAGE_KEY = 'atlas-radio:tab';
+
+// max volume steps per second: each step is a serial app -> daemon ->
+// bluetooth -> phone round trip, so faster bursts queue up and lag.
+const VOLUME_THROTTLE_MS = 90;
 function loadSavedTab(): TabMode {
   try {
     const t = localStorage.getItem(TAB_STORAGE_KEY);
@@ -666,10 +670,40 @@ export default function App() {
 
   // phone volume is knob-only: relative steps route over iap2 hid and move the
   // phone's volume. absolute setvolume never reaches the phone on ios.
-  const nudgeVolume = useCallback((dir: 1 | -1) => {
+  // throttled: each detent is a full app -> daemon -> bluetooth -> phone round
+  // trip, all serial, so an unthrottled burst queues up and the volume keeps
+  // moving after the knob stops. leading edge sends immediately, then at most
+  // one step per VOLUME_THROTTLE_MS, with a trailing flush for the burst tail.
+  const lastVolumeSentAt = useRef(0);
+  const pendingVolumeDir = useRef<0 | 1 | -1>(0);
+  const volumeFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushVolume = useCallback(() => {
+    volumeFlushTimer.current = null;
+    const dir = pendingVolumeDir.current;
+    pendingVolumeDir.current = 0;
+    if (dir === 0) return;
+    lastVolumeSentAt.current = Date.now();
     const client = getClient();
     if (dir > 0) client.audio.volumeUp().catch(() => {});
     else client.audio.volumeDown().catch(() => {});
+  }, []);
+  const nudgeVolume = useCallback((dir: 1 | -1) => {
+    const now = Date.now();
+    if (volumeFlushTimer.current === null && now - lastVolumeSentAt.current >= VOLUME_THROTTLE_MS) {
+      lastVolumeSentAt.current = now;
+      const client = getClient();
+      if (dir > 0) client.audio.volumeUp().catch(() => {});
+      else client.audio.volumeDown().catch(() => {});
+      return;
+    }
+    pendingVolumeDir.current = dir;
+    if (volumeFlushTimer.current === null) {
+      const wait = Math.max(0, VOLUME_THROTTLE_MS - (now - lastVolumeSentAt.current));
+      volumeFlushTimer.current = setTimeout(flushVolume, wait);
+    }
+  }, [flushVolume]);
+  useEffect(() => () => {
+    if (volumeFlushTimer.current !== null) clearTimeout(volumeFlushTimer.current);
   }, []);
 
   const visibleStations = useMemo(() => {

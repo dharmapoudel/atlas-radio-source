@@ -1,5 +1,12 @@
 # Atlas Radio
 
+## 0.6.7
+
+- Knob volume is throttled: each detent is a serial app -> daemon ->
+  bluetooth -> phone round trip, so fast spins queued up and the volume kept
+  moving after the knob stopped. The first detent still responds instantly,
+  then at most one step per 90ms with a trailing flush.
+
 ## 0.6.6
 
 - Portrait layout: the two landscape panels stack top/bottom, sized
