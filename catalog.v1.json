@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-21T01:50:08.280Z",
+  "updated_at": "2026-09-22T02:28:20.387Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.6.6",
+          "released_at": "2026-09-22T02:28:20.383Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.6.6.zip",
+            "size": 1207647,
+            "sha256": "2c35bb3a9e6b5c17a787e2460e0f5cb6ecf2066e6f9da066205357d2de38fe42"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Portrait layout: the two landscape panels stack top/bottom, sized\n  proportionally to their landscape widths (station list 68% on top,\n  Now Playing 32% below). Header stacks the search under the brand row,\n  tabs scroll horizontally, country tiles use two columns.\n- Landscape (800x480) is unchanged."
+        },
         {
           "version": "0.6.5",
           "released_at": "2026-09-21T01:50:08.275Z",
