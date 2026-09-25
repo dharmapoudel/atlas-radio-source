@@ -5,6 +5,7 @@ import { getClient } from './client';
 import { TABS, type Station, type TabMode } from './types';
 import { shuffled } from './utils';
 import WorldMap from './WorldMap';
+import Globe from './Globe';
 import { project, MAP_VIEW, countryFocus } from './mapFocus';
 
 
@@ -165,6 +166,9 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [mapZoom, setMapZoom] = useState(1);
   const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
+  // portrait globe rotation (orthographic, like the original omarchy plugin);
+  // kept in App so it survives tab switches, like the flat map's pan
+  const [globeRot, setGlobeRot] = useState({ lat: 18, lon: -20 });
   const [country, setCountry] = useState<{ code: string; name: string } | null>(null);
 
   const [playing, setPlaying] = useState<Station | null>(null);
@@ -271,6 +275,11 @@ export default function App() {
   // zoom is 1 at rest and 1.5 while a stream is playing.
   const focusStation = useCallback((station: Station) => {
     const { latitude: lat, longitude: lon } = station;
+    // the portrait globe recenters on the station too, like the original
+    // plugin's country focus; the globe clamps latitude to its +/-78 range
+    if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)) {
+      setGlobeRot({ lat: Math.max(-78, Math.min(78, lat)), lon });
+    }
     const geo: [number, number] | null =
       lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)
         ? project(lon, lat)
@@ -881,22 +890,40 @@ export default function App() {
         <main key={tab} ref={listRef} className="min-w-0 flex-1 overflow-y-auto animate-fade-in" style={isPortrait ? { flex: PORTRAIT_MAIN_FLEX } : undefined}>
           {tab === 'map' ? (
             <div className="h-full w-full">
-              <WorldMap
-                stations={mapStations}
-                pinStation={playing}
-                playingUuid={playing?.uuid ?? null}
-                isPaused={isPaused}
-                zoom={mapZoom}
-                pan={mapPan}
-                onPanChange={setMapPan}
-                knobZoom={mapKnobZoom}
-                loading={mapLoading}
-                error={mapError}
-                onMapClick={() => setMapKnobZoom(true)}
-                onRetry={loadMapStations}
-                onPlayStation={playStation}
-                onBrowseCountry={(code, name) => loadCountry(code, name)}
-              />
+              {isPortrait ? (
+                <Globe
+                  stations={mapStations}
+                  pinStation={playing}
+                  playingUuid={playing?.uuid ?? null}
+                  zoom={mapZoom}
+                  rot={globeRot}
+                  onRotChange={setGlobeRot}
+                  knobZoom={mapKnobZoom}
+                  loading={mapLoading}
+                  error={mapError}
+                  onRetry={loadMapStations}
+                  onPlayStation={playStation}
+                  onBrowseCountry={(code, name) => loadCountry(code, name)}
+                  onEmptyTap={() => setMapKnobZoom(true)}
+                />
+              ) : (
+                <WorldMap
+                  stations={mapStations}
+                  pinStation={playing}
+                  playingUuid={playing?.uuid ?? null}
+                  isPaused={isPaused}
+                  zoom={mapZoom}
+                  pan={mapPan}
+                  onPanChange={setMapPan}
+                  knobZoom={mapKnobZoom}
+                  loading={mapLoading}
+                  error={mapError}
+                  onMapClick={() => setMapKnobZoom(true)}
+                  onRetry={loadMapStations}
+                  onPlayStation={playStation}
+                  onBrowseCountry={(code, name) => loadCountry(code, name)}
+                />
+              )}
             </div>
           ) : tab === 'country' && !country ? (
             <div className={isPortrait
