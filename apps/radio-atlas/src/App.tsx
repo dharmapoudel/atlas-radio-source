@@ -5,6 +5,7 @@ import { getClient } from './client';
 import { TABS, type Station, type TabMode } from './types';
 import { shuffled } from './utils';
 import WorldMap from './WorldMap';
+import Globe from './Globe';
 import { project, MAP_VIEW, countryFocus } from './mapFocus';
 
 
@@ -51,6 +52,10 @@ const ACCENT_BTN = 'rounded-lg bg-gradient-to-b from-[#facb54] to-[#eda92e] font
 
 // last-open-tab persistence: the app reopens on whatever tab was active
 const TAB_STORAGE_KEY = 'atlas-radio:tab';
+
+// max volume steps per second: each step is a serial app -> daemon ->
+// bluetooth -> phone round trip, so faster bursts queue up and lag.
+const VOLUME_THROTTLE_MS = 90;
 function loadSavedTab(): TabMode {
   try {
     const t = localStorage.getItem(TAB_STORAGE_KEY);
@@ -161,6 +166,9 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [mapZoom, setMapZoom] = useState(1);
   const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
+  // portrait globe rotation (orthographic, like the original omarchy plugin);
+  // kept in App so it survives tab switches, like the flat map's pan
+  const [globeRot, setGlobeRot] = useState({ lat: 18, lon: -20 });
   const [country, setCountry] = useState<{ code: string; name: string } | null>(null);
 
   const [playing, setPlaying] = useState<Station | null>(null);
@@ -267,6 +275,11 @@ export default function App() {
   // zoom is 1 at rest and 1.5 while a stream is playing.
   const focusStation = useCallback((station: Station) => {
     const { latitude: lat, longitude: lon } = station;
+    // the portrait globe recenters on the station too, like the original
+    // plugin's country focus; the globe clamps latitude to its +/-78 range
+    if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)) {
+      setGlobeRot({ lat: Math.max(-78, Math.min(78, lat)), lon });
+    }
     const geo: [number, number] | null =
       lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)
         ? project(lon, lat)
@@ -666,10 +679,40 @@ export default function App() {
 
   // phone volume is knob-only: relative steps route over iap2 hid and move the
   // phone's volume. absolute setvolume never reaches the phone on ios.
-  const nudgeVolume = useCallback((dir: 1 | -1) => {
+  // throttled: each detent is a full app -> daemon -> bluetooth -> phone round
+  // trip, all serial, so an unthrottled burst queues up and the volume keeps
+  // moving after the knob stops. leading edge sends immediately, then at most
+  // one step per VOLUME_THROTTLE_MS, with a trailing flush for the burst tail.
+  const lastVolumeSentAt = useRef(0);
+  const pendingVolumeDir = useRef<0 | 1 | -1>(0);
+  const volumeFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushVolume = useCallback(() => {
+    volumeFlushTimer.current = null;
+    const dir = pendingVolumeDir.current;
+    pendingVolumeDir.current = 0;
+    if (dir === 0) return;
+    lastVolumeSentAt.current = Date.now();
     const client = getClient();
     if (dir > 0) client.audio.volumeUp().catch(() => {});
     else client.audio.volumeDown().catch(() => {});
+  }, []);
+  const nudgeVolume = useCallback((dir: 1 | -1) => {
+    const now = Date.now();
+    if (volumeFlushTimer.current === null && now - lastVolumeSentAt.current >= VOLUME_THROTTLE_MS) {
+      lastVolumeSentAt.current = now;
+      const client = getClient();
+      if (dir > 0) client.audio.volumeUp().catch(() => {});
+      else client.audio.volumeDown().catch(() => {});
+      return;
+    }
+    pendingVolumeDir.current = dir;
+    if (volumeFlushTimer.current === null) {
+      const wait = Math.max(0, VOLUME_THROTTLE_MS - (now - lastVolumeSentAt.current));
+      volumeFlushTimer.current = setTimeout(flushVolume, wait);
+    }
+  }, [flushVolume]);
+  useEffect(() => () => {
+    if (volumeFlushTimer.current !== null) clearTimeout(volumeFlushTimer.current);
   }, []);
 
   const visibleStations = useMemo(() => {
@@ -847,22 +890,40 @@ export default function App() {
         <main key={tab} ref={listRef} className="min-w-0 flex-1 overflow-y-auto animate-fade-in" style={isPortrait ? { flex: PORTRAIT_MAIN_FLEX } : undefined}>
           {tab === 'map' ? (
             <div className="h-full w-full">
-              <WorldMap
-                stations={mapStations}
-                pinStation={playing}
-                playingUuid={playing?.uuid ?? null}
-                isPaused={isPaused}
-                zoom={mapZoom}
-                pan={mapPan}
-                onPanChange={setMapPan}
-                knobZoom={mapKnobZoom}
-                loading={mapLoading}
-                error={mapError}
-                onMapClick={() => setMapKnobZoom(true)}
-                onRetry={loadMapStations}
-                onPlayStation={playStation}
-                onBrowseCountry={(code, name) => loadCountry(code, name)}
-              />
+              {isPortrait ? (
+                <Globe
+                  stations={mapStations}
+                  pinStation={playing}
+                  playingUuid={playing?.uuid ?? null}
+                  zoom={mapZoom}
+                  rot={globeRot}
+                  onRotChange={setGlobeRot}
+                  knobZoom={mapKnobZoom}
+                  loading={mapLoading}
+                  error={mapError}
+                  onRetry={loadMapStations}
+                  onPlayStation={playStation}
+                  onBrowseCountry={(code, name) => loadCountry(code, name)}
+                  onEmptyTap={() => setMapKnobZoom(true)}
+                />
+              ) : (
+                <WorldMap
+                  stations={mapStations}
+                  pinStation={playing}
+                  playingUuid={playing?.uuid ?? null}
+                  isPaused={isPaused}
+                  zoom={mapZoom}
+                  pan={mapPan}
+                  onPanChange={setMapPan}
+                  knobZoom={mapKnobZoom}
+                  loading={mapLoading}
+                  error={mapError}
+                  onMapClick={() => setMapKnobZoom(true)}
+                  onRetry={loadMapStations}
+                  onPlayStation={playStation}
+                  onBrowseCountry={(code, name) => loadCountry(code, name)}
+                />
+              )}
             </div>
           ) : tab === 'country' && !country ? (
             <div className={isPortrait

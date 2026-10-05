@@ -1,5 +1,19 @@
 # Atlas Radio
 
+## 0.6.8
+
+- Portrait map tab: the original omarchy plugin's rotatable globe with
+  station signals, ported from AksharP5/omarchy-radio-atlas. Drag to rotate
+  (with kinetic flick), knob to zoom, tap a signal to play, tap a country to
+  browse its stations. Landscape keeps the flat world map.
+
+## 0.6.7
+
+- Knob volume is throttled: each detent is a serial app -> daemon ->
+  bluetooth -> phone round trip, so fast spins queued up and the volume kept
+  moving after the knob stopped. The first detent still responds instantly,
+  then at most one step per 90ms with a trailing flush.
+
 ## 0.6.6
 
 - Portrait layout: the two landscape panels stack top/bottom, sized
