@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-10-05T01:38:00.469Z",
+  "updated_at": "2026-10-05T01:44:32.386Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -35,7 +35,7 @@
             "net.proxy"
           ],
           "min_libbridgething_version": "0.12.1",
-          "changelog": "- Portrait map tab: the original omarchy plugin's rotatable globe with\n  station signals, ported from AksharP5/omarchy-radio-atlas. Drag to rotate\n  (with kinetic flick), knob to zoom, tap a signal to play, tap a country to\n  browse its stations. Landscape keeps the flat world map."
+          "changelog": "- Portrait map tab: the original omarchy plugin's rotatable globe with\n  station signals, ported from AksharP5/omarchy-radio-atlas. Drag to rotate\n  (with kinetic flick), knob to zoom, tap a signal to play, tap a country to\n  browse its stations. Landscape keeps the flat world map.\n- Knob volume is throttled: each detent is a serial app -> daemon ->\n  bluetooth -> phone round trip, so fast spins queued up and the volume kept\n  moving after the knob stopped. The first detent still responds instantly,\n  then at most one step per 90ms with a trailing flush."
         },
         {
           "version": "0.6.6",
