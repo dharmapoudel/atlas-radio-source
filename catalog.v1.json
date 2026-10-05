@@ -1,7 +1,7 @@
 {
   "$schema": "https://apps.bridgething.com/schemas/catalog/v1.json",
   "schema": "catalog.v1",
-  "updated_at": "2026-09-22T02:28:20.387Z",
+  "updated_at": "2026-10-05T01:38:00.469Z",
   "repo": {
     "name": "Atlas Radio",
     "description": "World radio for the Spotify Car Thing.",
@@ -23,6 +23,20 @@
       "homepage": "https://github.com/dharmapoudel/atlas-radio",
       "source": "https://github.com/dharmapoudel/atlas-radio",
       "versions": [
+        {
+          "version": "0.6.8",
+          "released_at": "2026-10-05T01:38:00.463Z",
+          "download": {
+            "url": "https://dharmapoudel.github.io/atlas-radio-source/r/01a08604-de6f-7a9f-a11e-1b4233458b2a/0.6.8.zip",
+            "size": 1221139,
+            "sha256": "61b7527e463009b21a6110f28db45fa3ce06539e351e5bd22abdc0c74b72e5b5"
+          },
+          "permissions": [
+            "net.proxy"
+          ],
+          "min_libbridgething_version": "0.12.1",
+          "changelog": "- Portrait map tab: the original omarchy plugin's rotatable globe with\n  station signals, ported from AksharP5/omarchy-radio-atlas. Drag to rotate\n  (with kinetic flick), knob to zoom, tap a signal to play, tap a country to\n  browse its stations. Landscape keeps the flat world map."
+        },
         {
           "version": "0.6.6",
           "released_at": "2026-09-22T02:28:20.383Z",
