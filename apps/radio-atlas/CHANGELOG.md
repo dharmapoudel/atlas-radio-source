@@ -6,9 +6,6 @@
   station signals, ported from AksharP5/omarchy-radio-atlas. Drag to rotate
   (with kinetic flick), knob to zoom, tap a signal to play, tap a country to
   browse its stations. Landscape keeps the flat world map.
-
-## 0.6.7
-
 - Knob volume is throttled: each detent is a serial app -> daemon ->
   bluetooth -> phone round trip, so fast spins queued up and the volume kept
   moving after the knob stopped. The first detent still responds instantly,
